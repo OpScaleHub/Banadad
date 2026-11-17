@@ -42,6 +42,9 @@ android {
         buildConfigField("String", "UPDATE_URLS", "\"$updateUrls\"")
         buildConfigField("boolean", "UPDATE_AUTO_DEBUG", "${updateUrl != null}")
         buildConfigField("boolean", "UPDATES_ENABLED", "${!bazaar}")
+        buildConfigField("boolean", "STORE_BAZAAR", "$bazaar")
+        // Public support address, as on the Cafe Bazaar listing; feedback is emailed here.
+        buildConfigField("String", "SUPPORT_EMAIL", "\"shayne.alone@gmail.com\"")
     }
 
     signingConfigs {

@@ -35,6 +35,7 @@ links to them.
 | 2026-10-21 | 0.4.4 | The in-app demo is named «نمونه» (easy to find and delete) and holds a year of data: 11 closed months plus the current one, seasonal water, a price rise, one-off repairs, a reserve-funded emergency, and different payment habits (on time, partial, late, ahead, a bounced cheque). |
 | 2026-11-13 | 0.4.6 | Opening balances («مانده‌های اول کار»): past unit debt or prepayment at setup, editable until the first close. |
 | 2026-11-17 | 0.5.0 | Testers' reports: (1) cancelling a bill took several steps, (2) Iranian buildings prepay the monthly charge by the 10th but Dang charged it at closing, (3) "two buckets" confused managers and a water bill paid from the pot was charged to units again by meter. Now: one-step cancel (payments reversed, closed months credited by a revision), prepaid monthly charge posted on day 1 (due the 10th, months start themselves), and in fixed-charge buildings every bill is covered by the charge unless marked «جدا از واحدها گرفته شود». Simple mode shows one «صندوق ساختمان». DB v5 (`charge_items.inAdvance`). |
+| 2026-11-17 | 0.6.0 | One app, fewer knobs: the simple/advanced switch is gone (simple is the app). Removed from the UI: calendar, currency, rounding and occupancy-basis settings, water tariffs, the split-formula editor, fund/cash-account management and fund transfers, audit log, meter serial/rollover, creating charge items by hand. Feedback: no more «نظر» on every screen and no SUS survey; «نظر یا گزارش مشکل» in «بیشتر» emails the support address on the Bazaar listing (share sheet if no email app), and the Bazaar edition adds «امتیاز و نظر در بازار». Engine and data unchanged; old buildings keep their settings. |
 
 ## 3. Key decisions and the reasons behind them
 
@@ -94,6 +95,10 @@ links to them.
   plain words and sets up everything else. The engine (formulas, bases, funds) is still there,
   in advanced mode.
 - **Simple mode never changes data**, it only hides controls. Old buildings keep everything.
+  (0.6.0: simple mode is now the only mode; the engine keeps everything for old data and the demo.)
+- **Feedback must reach the developer from anyone** (0.6.0): the share sheet only worked for
+  testers who knew the owner. Feedback is emailed to the public support address of the Bazaar
+  listing (`BuildConfig.SUPPORT_EMAIL`), and Bazaar users can rate the app in Bazaar.
 - **Name choices by what they do** («مساوی بین همه واحدها»، «به تعداد نفرات»، «از صندوق
   ساختمان») rather than by engine terms («دسته»، «پایه تسهیم»).
 - **Generate from the building's structure, keep later edits possible** (owner's principle,

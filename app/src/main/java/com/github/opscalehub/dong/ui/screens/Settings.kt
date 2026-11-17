@@ -68,13 +68,8 @@ private fun problemText(c: ProblemCode) = when (c) {
 fun SettingsScreen(vm: AppViewModel) {
     val b by vm.building.collectAsState()
     val building = b ?: return
-    val funds by vm.funds.collectAsState()
-    val cash by vm.cashAccounts.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var addingFund by remember { mutableStateOf(false) }
-    var addingCash by remember { mutableStateOf(false) }
-    val advancedMode by vm.ui.advanced.collectAsState()
 
     val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch {
@@ -89,28 +84,14 @@ fun SettingsScreen(vm: AppViewModel) {
     }
     ScreenList {
         item {
-            val advanced by vm.ui.advanced.collectAsState()
             val scale by vm.ui.textScale.collectAsState()
             SectionCard(S.displayTitle) {
-                Text(S.modeLabel, style = MaterialTheme.typography.labelLarge)
-                SingleChoice(listOf(false, true), advanced, { vm.ui.setAdvanced(it) }) { if (it) S.advancedMode else S.simpleMode }
-                Hint(S.modeHint)
                 Text(S.textSize, style = MaterialTheme.typography.labelLarge)
                 SingleChoice(com.github.opscalehub.dong.ui.UiPrefs.SCALES, com.github.opscalehub.dong.ui.UiPrefs.SCALES.minBy { kotlin.math.abs(it - scale) },
                     { vm.ui.setTextScale(it) }) { S.textSizes[com.github.opscalehub.dong.ui.UiPrefs.SCALES.indexOf(it)] }
             }
         }
         item { BuildingSettingsCard(vm) }
-        // Funds and bank accounts are bookkeeping detail: simple mode works with the defaults.
-        if (advancedMode) item {
-            SectionCard(S.fundsAndCash) {
-                funds.forEach { KeyValue(it.name, when (it.kind) { FundKind.OPERATING -> "عملیاتی"; FundKind.RESERVE -> "اندوخته"; FundKind.OTHER -> "سایر" }) }
-                Divider()
-                cash.forEach { KeyValue(it.name, if (it.kind == CashKind.BANK) "بانک" else "صندوق نقدی") }
-                OutlinedButton(onClick = { addingFund = true }) { Text(S.newFund) }
-                OutlinedButton(onClick = { addingCash = true }) { Text(S.newCashAccount) }
-            }
-        }
         item {
             SectionCard(S.backupTitle, subtitle = S.backupNote) {
                 Button(onClick = { backupLauncher.launch("dang-backup-${Fmt.date(vm.today, building.calendar, persian = false).replace('/', '-')}.json") }, Modifier.fillMaxWidth()) { Text(S.backupNow) }
@@ -133,26 +114,6 @@ fun SettingsScreen(vm: AppViewModel) {
         }
     }
 
-    if (addingFund) {
-        var name by rememberSaveable { mutableStateOf("") }
-        var kind by remember { mutableStateOf(FundKind.OTHER) }
-        FormDialog(S.newFund, { addingFund = false }, {
-            vm.run(S.saved, onSuccess = { addingFund = false }) { vm.repos.finance.addFund(building.id, name, kind) }
-        }, canConfirm = name.isNotBlank()) {
-            TextInput(S.name, name, { name = it })
-            SingleChoice(listOf(FundKind.RESERVE, FundKind.OTHER), kind, { kind = it }) { if (it == FundKind.RESERVE) "اندوخته" else "سایر" }
-        }
-    }
-    if (addingCash) {
-        var name by rememberSaveable { mutableStateOf("") }
-        var kind by remember { mutableStateOf(CashKind.BANK) }
-        FormDialog(S.newCashAccount, { addingCash = false }, {
-            vm.run(S.saved, onSuccess = { addingCash = false }) { vm.repos.finance.addCashAccount(building.id, name, kind) }
-        }, canConfirm = name.isNotBlank()) {
-            TextInput(S.name, name, { name = it })
-            SingleChoice(CashKind.entries, kind, { kind = it }) { if (it == CashKind.BANK) "بانک" else "صندوق نقدی" }
-        }
-    }
 }
 
 /** "Restore from backup" button with file picker, bounded read and the preview/confirm dialog. */
@@ -206,21 +167,8 @@ private fun BuildingSettingsCard(vm: AppViewModel) {
     SectionCard(S.buildingSettings, subtitle = S.settingsNote) {
         TextInput(S.buildingName, name, { name = it })
         TextInput(S.address, address, { address = it })
-        Text(S.displayCurrency, style = MaterialTheme.typography.labelMedium)
-        SingleChoice(listOf(true, false), toman, { toman = it }) { if (it) S.showToman else S.showRial }
-        // Set once, usually never touched: kept out of the way.
-        var advanced by rememberSaveable { mutableStateOf(false) }
-        androidx.compose.material3.TextButton(onClick = { advanced = !advanced }) { Text(S.advanced) }
-        if (advanced) {
-            Text(S.calendar, style = MaterialTheme.typography.labelMedium)
-            SingleChoice(CalendarSystem.entries, cal, { cal = it }) { Fa.calendar(it) }
-            Text(S.occupancyBasis, style = MaterialTheme.typography.labelMedium)
-            SingleChoice(OccupancyBasis.entries, occ, { occ = it }) { Fa.occupancyBasis(it) }
-            NumberInput(S.roundingIncrement, rounding, supporting = S.roundingHint)
-            TextInput(S.currencyName, currencyName, { currencyName = it })
-            TextInput(S.currencyCode, currencyCode, { currencyCode = it })
-            NumberInput(S.minorDigits, digits)
-        }
+        // Calendar, currency, rounding and how residents are counted keep the values set at setup:
+        // an Iranian building never needs to change them.
         Button(onClick = {
             vm.run(S.saved) {
                 vm.repos.buildings.updateSettings(building.copy(name = name.trim(), address = address.trim(), currencyCode = currencyCode.trim(),
@@ -274,19 +222,3 @@ private fun RestoreDialog(vm: AppViewModel, pv: RestorePreview, close: () -> Uni
     }
 }
 
-@Composable
-fun AuditScreen(vm: AppViewModel) {
-    val b by vm.building.collectAsState()
-    val building = b ?: return
-    val audit by vm.audit.collectAsState()
-    ScreenList {
-        if (audit.isEmpty()) item { SectionCard { Hint(S.empty) } }
-        items(audit.size) { i ->
-            val a = audit[i]
-            SectionCard {
-                Text(Fa.auditAction(a.action), style = MaterialTheme.typography.labelLarge)
-                Hint("${Fmt.dateTime(a.at, building.calendar)}، ${a.summary}")
-            }
-        }
-    }
-}

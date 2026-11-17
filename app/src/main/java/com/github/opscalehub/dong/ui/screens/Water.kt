@@ -63,10 +63,8 @@ fun WaterScreen(vm: AppViewModel, nav: NavController) {
     val current = vm.currentPeriod(periods, vm.today)
     val preview by derived(vm, current?.id) { current?.let { vm.repos.periods.preview(it.id) } }
     var addingMeter by remember { mutableStateOf(false) }
-    var addingTariff by remember { mutableStateOf(false) }
     val superseded = readings.mapNotNull { it.supersedesId }.toSet()
 
-    val advanced by vm.ui.advanced.collectAsState()
     val active = meters.filter { it.retiredOn == null }
     val unmetered = units.filter { u -> u.active && active.none { it.role == MeterRole.UNIT && it.unitId == u.id } }
     var splitByMeter by rememberSaveable { mutableStateOf(true) }
@@ -75,7 +73,7 @@ fun WaterScreen(vm: AppViewModel, nav: NavController) {
         ScreenList {
             item {
                 SectionCard {
-                    Hint(if (meters.isEmpty()) S.noMetersNeeded else if (advanced) S.waterHint else S.waterHintSimple)
+                    Hint(if (meters.isEmpty()) S.noMetersNeeded else S.waterHintSimple)
                     if (active.isNotEmpty()) Button(onClick = { nav.navigate(Routes.READINGS) }, Modifier.fillMaxWidth()) { Text(S.readingsBatch) }
                 }
             }
@@ -91,7 +89,7 @@ fun WaterScreen(vm: AppViewModel, nav: NavController) {
             }
             preview?.water?.let { w ->
                 // Main meter vs the units' sum: only meaningful when both exist.
-                if (active.any { it.role == MeterRole.MAIN } && active.any { it.role == MeterRole.UNIT } && (w.mainLiters != null || advanced)) item {
+                if (active.any { it.role == MeterRole.MAIN } && active.any { it.role == MeterRole.UNIT } && w.mainLiters != null) item {
                     SectionCard("${S.reconciliation} — ${current?.name ?: ""}", subtitle = S.commonUseNote) {
                         KeyValue(S.mainConsumption, w.mainLiters?.let { "${Fmt.cubicMeters(it)} ${S.m3}" } ?: S.none)
                         KeyValue(S.unitsConsumption, "${Fmt.cubicMeters(w.unitSumLiters)} ${S.m3}")
@@ -108,14 +106,13 @@ fun WaterScreen(vm: AppViewModel, nav: NavController) {
                     ClickRow({ nav.navigate(Routes.meter(m.id)) }) {
                         Column(Modifier.weight(1f)) {
                             Text(m.label + if (m.retiredOn != null) " (${S.retired})" else "", style = MaterialTheme.typography.titleMedium)
-                            if (advanced) Hint(Fa.meterRole(m.role) + (m.unitId?.let { id -> "، ${S.unit} ${units.firstOrNull { it.id == id }?.label ?: ""}" } ?: ""))
                             Hint(S.lastReading + ": " + (last?.let { "${Fmt.cubicMeters(it.valueLiters)} ${S.m3} (${Fmt.date(it.readingDate, building.calendar)})" } ?: S.none))
                         }
                     }
                 }
             }
-            // Official water tariffs are an advanced way to charge water.
-            if (advanced || tariffs.isNotEmpty()) item {
+            // Official water tariffs: no longer offered; shown only for buildings that already have one.
+            if (tariffs.isNotEmpty()) item {
                 SectionCard(S.tariffs) {
                     if (tariffs.isEmpty()) Hint(S.empty)
                     val mf = LocalMoney.current
@@ -125,17 +122,15 @@ fun WaterScreen(vm: AppViewModel, nav: NavController) {
                             (tier.upToLiters?.let { "تا ${Fmt.cubicMeters(it)}" } ?: "بیشتر") + " م³: " + mf.format(tier.priceMinorPerM3)
                         } + "، ${S.fixedFee}: ${money(t.fixedFeeMinor)}، ${S.surcharge}: ${Fmt.percentBp(t.surchargeBp)}")
                     }
-                    OutlinedButton(onClick = { addingTariff = true }) { Text(S.newTariff) }
                 }
             }
         }
     }
-    if (addingMeter) MeterDialog(vm, building.id, units, advanced) { addingMeter = false }
-    if (addingTariff) TariffDialog(vm, building.id) { addingTariff = false }
+    if (addingMeter) MeterDialog(vm, building.id, units) { addingMeter = false }
 }
 
 @Composable
-private fun MeterDialog(vm: AppViewModel, buildingId: String, units: List<UnitEntity>, advanced: Boolean, close: () -> Unit) {
+private fun MeterDialog(vm: AppViewModel, buildingId: String, units: List<UnitEntity>, close: () -> Unit) {
     var label by rememberSaveable { mutableStateOf("") }
     var role by remember { mutableStateOf(MeterRole.UNIT) }
     var unit by remember { mutableStateOf<UnitEntity?>(null) }
@@ -150,13 +145,8 @@ private fun MeterDialog(vm: AppViewModel, buildingId: String, units: List<UnitEn
     }, canConfirm = ok) {
         TextInput(S.meterLabel, label, { label = it })
         Text(S.meterRole, style = MaterialTheme.typography.labelMedium)
-        SingleChoice(if (advanced) MeterRole.entries else listOf(MeterRole.UNIT, MeterRole.MAIN), role, { role = it }) { Fa.meterRole(it) }
+        SingleChoice(listOf(MeterRole.UNIT, MeterRole.MAIN), role, { role = it }) { Fa.meterRole(it) }
         if (role == MeterRole.UNIT) Dropdown(S.unit, units.filter { it.active }, unit, { unit = it; if (label.isBlank()) label = "کنتور واحد ${it.label}" }, { it.label })
-        // Serial and counter limit are for unusual meters only.
-        if (advanced) {
-            TextInput(S.serial, serial, { serial = it })
-            NumberInput(S.rolloverLimit, limit, allowEmpty = true)
-        }
     }
 }
 
@@ -169,29 +159,6 @@ fun parseTiers(text: String): List<TariffTier>? {
         if (kv.size != 2) return null
         val upTo = if (kv[0].isBlank()) null else Fmt.parseCubicMeters(kv[0]) ?: return null
         TariffTier(upTo, kv[1].trim().toLongOrNull() ?: return null)
-    }
-}
-
-@Composable
-private fun TariffDialog(vm: AppViewModel, buildingId: String, close: () -> Unit) {
-    var name by rememberSaveable { mutableStateOf("تعرفه آب") }
-    val from = rememberDate(vm.today)
-    val fixed = rememberMoney(0)
-    var tiers by rememberSaveable { mutableStateOf("") }
-    val surcharge = rememberCount(0)
-    val common = rememberMoney(0)
-    val parsed = parseTiers(tiers)
-    FormDialog(S.newTariff, close, {
-        vm.run(S.saved, onSuccess = close) {
-            vm.repos.water.saveTariff(vm.repos.water.tariffOf(buildingId, name, from.value!!, fixed.value!!, parsed!!, (surcharge.value!! * 100).toInt(), common.value!!))
-        }
-    }, canConfirm = name.isNotBlank() && from.value != null && fixed.valid && parsed != null && surcharge.valid && common.valid) {
-        TextInput(S.name, name, { name = it })
-        DateInput(S.effectiveFrom, from, vm.today)
-        TextInput(S.tiersField, tiers, { tiers = it }, error = if (tiers.isNotBlank() && parsed == null) S.invalidNumber else null)
-        NumberInput(S.fixedFee, fixed)
-        NumberInput(S.surcharge, surcharge)
-        NumberInput(S.commonRate, common)
     }
 }
 

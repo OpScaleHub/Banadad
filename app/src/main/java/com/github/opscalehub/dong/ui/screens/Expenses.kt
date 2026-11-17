@@ -54,7 +54,6 @@ import com.github.opscalehub.dong.ui.FormDialog
 import com.github.opscalehub.dong.ui.Hint
 import com.github.opscalehub.dong.ui.KeyValue
 import com.github.opscalehub.dong.ui.NumberInput
-import com.github.opscalehub.dong.ui.PolicyEditor
 import com.github.opscalehub.dong.ui.ReasonDialog
 import com.github.opscalehub.dong.ui.Routes
 import com.github.opscalehub.dong.ui.LocalMoney
@@ -161,7 +160,6 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     var saveAsDefault by rememberSaveable { mutableStateOf(false) }
     val policy = rememberPolicyEditor(existing?.policy() ?: AllocationPolicy())
     var policyTouched by remember { mutableStateOf(existing != null) }
-    var advanced by remember { mutableStateOf(false) }
     var addingSupplier by remember { mutableStateOf(false) }
     var voiding by remember { mutableStateOf(false) }
     var paying by remember { mutableStateOf(false) }
@@ -191,7 +189,6 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     val pol = policy.toPolicy()
     // The description is optional: a blank one is saved as the expense type's name.
     val valid = date.value != null && category != null && (amount.value ?: 0) != 0L && fund != null && pol != null
-    val advancedMode by vm.ui.advanced.collectAsState()
     val meters by vm.meters.collectAsState()
     val chargeItems by vm.chargeItems.collectAsState()
     // A fixed-monthly-charge building pays bills from the fund: start there until a type is picked.
@@ -230,8 +227,8 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                         Dropdown(S.supplier, listOf<SupplierEntity?>(null) + suppliers, supplier, { supplier = it }, { it?.name ?: S.none }, Modifier.weight(1f))
                         TextButton(onClick = { addingSupplier = true }) { Text(S.add) }
                     }
-                    // One bucket in simple mode: the fund (running costs / reserve) is an advanced idea.
-                    if (advancedMode || fund?.kind != FundKind.OPERATING) Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
+                    // One bucket: the fund is shown only for old bills recorded against another one.
+                    if (fund?.kind != FundKind.OPERATING) Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
                     TextInput(S.documentRef, docRef, { docRef = it })
                     TextInput(S.notes, notes, { notes = it }, singleLine = false)
                 }
@@ -256,11 +253,8 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                 }
                 // Simple mode: a few named choices with what each one means. Advanced mode adds the
                 // last-used policy and the full formula editor.
-                val last = expenses.filter { it.categoryId == category?.id && it.id != existing?.id && it.status == ExpenseStatus.ACTIVE }.maxByOrNull { it.createdAt }
-                val options = plainSplits((meters.isNotEmpty() && category?.isWater == true) || advancedMode, spaces.isNotEmpty(), chargeItems.any { it.active })
-                    .filter { !prepaid || !it.third.fundOnly } + buildList {
-                    if (advancedMode) last?.let { add(Triple(S.presetLast, policySummary(it.policy()), it.policy())) }
-                }
+                val options = plainSplits(meters.isNotEmpty() && category?.isWater == true, spaces.isNotEmpty(), chargeItems.any { it.active })
+                    .filter { !prepaid || !it.third.fundOnly }
                 // Multipliers: a weighted split edited as «۱×، ۲×…» per unit (e.g. elevator by floor).
                 val active = units.filter { it.active }.sortedBy { it.sortOrder }
                 val currentWeights = (pol?.components?.singleOrNull()?.basis as? Basis.Weighted)?.weights
@@ -281,10 +275,6 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                 val cat = category
                 if (cat != null && pol != null && pol != cat.policy()) {
                     com.github.opscalehub.dong.ui.SwitchRow(S.saveAsDefault.format(cat.name), saveAsDefault, { saveAsDefault = it })
-                }
-                if (advancedMode) {
-                    TextButton(onClick = { advanced = !advanced }) { Text(S.advanced) }
-                    if (advanced) PolicyEditor(policy, units, spaces)
                 }
             }
         }
@@ -384,7 +374,6 @@ fun CategoriesScreen(vm: AppViewModel) {
     val spaces by vm.spaces.collectAsState()
     val meters by vm.meters.collectAsState()
     val chargeItems by vm.chargeItems.collectAsState()
-    val advanced by vm.ui.advanced.collectAsState()
     var editing by remember { mutableStateOf<CategoryEntity?>(null) }
     var creating by remember { mutableStateOf(false) }
 
@@ -392,7 +381,7 @@ fun CategoriesScreen(vm: AppViewModel) {
         ScreenList {
             item { SectionCard { Hint(S.policyChangeNote) } }
             // The hidden type that only carries the monthly charge is noise in simple mode.
-            val shown = if (advanced) categories else categories.filter { it.active || it.name != com.github.opscalehub.dong.data.MONTHLY_CHARGE }
+            val shown = categories.filter { it.active || it.name != com.github.opscalehub.dong.data.MONTHLY_CHARGE }
             items(shown.size) { i ->
                 val c = shown[i]
                 SectionCard {
@@ -402,7 +391,7 @@ fun CategoriesScreen(vm: AppViewModel) {
                             // The fund only matters when it is not the usual one.
                             val fund = funds.firstOrNull { it.id == c.defaultFundId }
                             Hint(splitName(c.policy(), meters.isNotEmpty(), spaces.isNotEmpty()) +
-                                if (advanced || fund?.kind != FundKind.OPERATING) "، " + (fund?.name ?: "") else "")
+                                if (fund?.kind != FundKind.OPERATING) "، " + (fund?.name ?: "") else "")
                         }
                         if (c.isWater) Badge(S.water)
                     }
@@ -424,14 +413,9 @@ fun CategoriesScreen(vm: AppViewModel) {
             }
         }, canConfirm = name.isNotBlank() && policy.toPolicy() != null) {
             TextInput(S.name, name, { name = it })
-            if (advanced) {
-                Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
-                SwitchRow(S.isWater, water, { water = it })
-            }
             SwitchRow(S.active, active, { active = it })
             Hint(S.policyChangeNote)
-            if (advanced) PolicyEditor(policy, units, spaces)
-            else {
+            run {
                 // Simple mode: the same named choices as the expense form; anything else stays as it is.
                 Text(S.howToSplit, style = MaterialTheme.typography.labelLarge)
                 val pol = policy.toPolicy()
@@ -467,19 +451,12 @@ fun ChargeItemsScreen(vm: AppViewModel) {
     val b by vm.building.collectAsState()
     val building = b ?: return
     val items by vm.chargeItems.collectAsState()
-    val categories by vm.categories.collectAsState()
-    val funds by vm.funds.collectAsState()
-    val tariffs by vm.tariffs.collectAsState()
-    val units by vm.units.collectAsState()
-    val spaces by vm.spaces.collectAsState()
     var editing by remember { mutableStateOf<ChargeItemEntity?>(null) }
-    var creating by remember { mutableStateOf(false) }
 
-    val advanced by vm.ui.advanced.collectAsState()
-    WithFab(if (advanced) S.newChargeItem else null, { creating = true }) {
+    WithFab(null, {}) {
         ScreenList {
             if (items.isEmpty()) item { SectionCard { Hint(S.empty) } }
-            if (!advanced) item { SectionCard { Hint(S.chargeEditHint) } }
+            item { SectionCard { Hint(S.chargeEditHint) } }
             items(items.size) { i ->
                 val c = items[i]
                 SectionCard {
@@ -487,68 +464,26 @@ fun ChargeItemsScreen(vm: AppViewModel) {
                         Column(Modifier.weight(1f)) {
                             Text(c.name + if (!c.active) " (${S.inactive})" else "", style = MaterialTheme.typography.titleMedium)
                             val plain = chargeSummary(c)
-                            if (plain != null && !advanced) Text(plain, style = MaterialTheme.typography.bodyLarge)
+                            if (plain != null) Text(plain, style = MaterialTheme.typography.bodyLarge)
                             else Hint("${Fa.chargeMode(c.mode)}، ${if (c.mode != ChargeMode.WATER_TARIFF) money(c.amountMinor) else ""}، ${policySummary(c.policy())}")
-                            if (advanced || c.activeTo != null) Hint("${S.effectiveFrom} ${Fmt.date(c.activeFrom, building.calendar)}" + (c.activeTo?.let { " ${S.effectiveTo} ${Fmt.date(it, building.calendar)}" } ?: ""))
+                            if (c.activeTo != null) Hint("${S.effectiveFrom} ${Fmt.date(c.activeFrom, building.calendar)}" + (c.activeTo?.let { " ${S.effectiveTo} ${Fmt.date(it, building.calendar)}" } ?: ""))
                         }
                     }
                 }
             }
         }
     }
-    val target = editing ?: if (creating) ChargeItemEntity(newId(), building.id, "", categories.firstOrNull()?.id ?: "", funds.firstOrNull()?.id ?: "", ChargeMode.TOTAL, 0,
-        AllocationPolicy().encode(), activeFrom = vm.today) else null
-    // Simple mode: only the amount changes. Closed months keep what they charged; open ones use the new amount.
-    if (target != null && !advanced) {
+    val target = editing
+    // Only the amount changes. Closed months keep what they charged; open ones use the new amount.
+    if (target != null) {
         val amount = rememberMoney(target.amountMinor)
-        val close = { editing = null; creating = false }
+        val close = { editing = null }
         FormDialog(target.name, close, {
             vm.run(S.saved, onSuccess = close) { vm.repos.expenses.saveChargeItem(target.copy(amountMinor = amount.value!!)) }
         }, canConfirm = amount.valid && (amount.value ?: 0) > 0) {
             chargeSummary(target)?.let { Hint(it) }
             NumberInput(S.newMonthlyAmount, amount)
             Hint(S.chargeChangeNote)
-        }
-        return
-    }
-    if (target != null) {
-        var name by rememberSaveable(target.id) { mutableStateOf(target.name) }
-        var cat by remember(target.id) { mutableStateOf(categories.firstOrNull { it.id == target.categoryId }) }
-        var fund by remember(target.id) { mutableStateOf(funds.firstOrNull { it.id == target.fundId }) }
-        var mode by remember(target.id) { mutableStateOf(target.mode) }
-        val amount = rememberMoney(target.amountMinor)
-        var tariff by remember(target.id) { mutableStateOf<WaterTariffEntity?>(tariffs.firstOrNull { it.id == target.tariffId }) }
-        val from = rememberDate(target.activeFrom, building.calendar)
-        val to = rememberDate(target.activeTo, building.calendar)
-        var active by remember(target.id) { mutableStateOf(target.active) }
-        var inAdvance by remember(target.id) { mutableStateOf(target.inAdvance) }
-        val policy = rememberPolicyEditor(target.policy().let { if (target.mode == ChargeMode.WATER_TARIFF) it else it })
-        val close = { editing = null; creating = false }
-        val pol = if (mode == ChargeMode.WATER_TARIFF) policy.toPolicy()?.let { p ->
-            if (p.components.firstOrNull()?.basis is Basis.Consumption) p else AllocationPolicy.single(Basis.Consumption(CommonWater.FundBorne), p.components.firstOrNull()?.eligibility ?: com.github.opscalehub.dong.domain.allocation.Eligibility.AllActive)
-        } else policy.toPolicy()
-        FormDialog(if (creating) S.newChargeItem else S.edit, close, {
-            vm.run(S.saved, onSuccess = close) {
-                vm.repos.expenses.saveChargeItem(target.copy(name = name, categoryId = cat!!.id, fundId = fund!!.id, mode = mode,
-                    amountMinor = if (mode == ChargeMode.WATER_TARIFF) 0 else amount.value!!, policyJson = pol!!.encode(), tariffId = tariff?.id,
-                    activeFrom = from.value!!, activeTo = to.value, active = active, inAdvance = inAdvance && mode != ChargeMode.WATER_TARIFF))
-            }
-        }, canConfirm = name.isNotBlank() && cat != null && fund != null && from.value != null && pol != null && (mode == ChargeMode.WATER_TARIFF || amount.valid)) {
-            TextInput(S.name, name, { name = it })
-            Dropdown(S.category, categories, cat, { cat = it }, { it.name })
-            if (advanced) Dropdown(S.fund, funds, fund, { fund = it }, { f: FundEntity -> f.name })
-            Text(S.chargeMode, style = MaterialTheme.typography.labelMedium)
-            SingleChoice(ChargeMode.entries, mode, { mode = it }) { Fa.chargeMode(it) }
-            when (mode) {
-                ChargeMode.TOTAL -> NumberInput(S.totalAmount, amount)
-                ChargeMode.RATE -> NumberInput(S.rateAmount, amount)
-                ChargeMode.WATER_TARIFF -> Dropdown(S.tariff, listOf<WaterTariffEntity?>(null) + tariffs, tariff, { tariff = it }, { it?.name ?: S.autoTariff })
-            }
-            DateInput(S.effectiveFrom, from, vm.today)
-            DateInput(S.effectiveTo, to, vm.today, allowEmpty = true)
-            SwitchRow(S.active, active, { active = it })
-            if (mode != ChargeMode.WATER_TARIFF) SwitchRow(S.inAdvance, inAdvance, { inAdvance = it })
-            PolicyEditor(policy, units, spaces, allowFundOnly = false)
         }
     }
 }
