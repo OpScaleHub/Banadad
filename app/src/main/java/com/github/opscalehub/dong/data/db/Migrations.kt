@@ -37,5 +37,19 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    /**
+     * v5: charge items paid in advance (the monthly charge is due by the 10th of the month itself).
+     * Buildings set up with a fixed monthly charge (the wizard's «شارژ ماهانه» type) switch to it.
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE charge_items ADD COLUMN inAdvance INTEGER NOT NULL DEFAULT 0")
+            db.execSQL(
+                "UPDATE charge_items SET inAdvance = 1 WHERE mode != 'WATER_TARIFF' AND categoryId IN " +
+                    "(SELECT id FROM categories WHERE name = 'شارژ ماهانه' AND active = 0)",
+            )
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 }

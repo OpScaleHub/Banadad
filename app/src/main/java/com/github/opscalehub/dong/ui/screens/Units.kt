@@ -108,7 +108,7 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
         ScreenList {
             if (collect) item {
                 val d = report ?: return@item
-                val c = d.periods.filter { it.status == PeriodStatus.FINALIZED }.maxByOrNull { it.endDate }?.let { Insights.collection(d, it.id) }
+                val c = com.github.opscalehub.dong.data.lastBilled(d)?.let { Insights.collection(d, it.id) }
                 SectionCard(S.collectTitle, subtitle = S.collectHint) {
                     if (c != null && c.billed > 0) Text("${S.collected}: ${money(c.collected)} ${S.of} ${money(c.billed)}", style = MaterialTheme.typography.titleMedium)
                     if (balances.values.none { it > 0 }) Hint(S.allPaid, MaterialTheme.colorScheme.primary)
@@ -263,7 +263,8 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
     val unit = units.firstOrNull { it.id == unitId } ?: return
     val report by derived(vm, unitId) { vm.reports.load(building.id) }
     val statement by derived(vm, unitId) { vm.repos.finance.unitStatement(building.id, unitId) }
-    val lastClosed = periods.filter { it.status == PeriodStatus.FINALIZED }.maxByOrNull { it.endDate }
+    // The bill to share: the last closed month, or the current one once it is charged in advance.
+    val lastClosed = report?.let { com.github.opscalehub.dong.data.lastBilled(it) } ?: periods.filter { it.status == PeriodStatus.FINALIZED }.maxByOrNull { it.endDate }
     var editing by remember { mutableStateOf(false) }
     var settingOpening by remember { mutableStateOf(false) }
     val openingEditable = periods.none { it.status == PeriodStatus.FINALIZED }

@@ -16,6 +16,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -85,10 +86,13 @@ fun FinanceScreen(vm: AppViewModel, nav: NavController) {
                 if (openingEditable) OutlinedButton(onClick = { action = Action.OPENING }, Modifier.fillMaxWidth()) { Text(S.opening) }
                 TextButton(onClick = { more = !more }) { Text(if (more) S.fewerActions else S.moreActions) }
                 if (more) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val advanced by vm.ui.advanced.collectAsState()
+                    val cashAccounts by vm.cashAccounts.collectAsState()
                     OutlinedButton(onClick = { action = Action.ADJUST }) { Text(S.adjustment) }
                     OutlinedButton(onClick = { action = Action.REFUND }) { Text(S.refund) }
-                    OutlinedButton(onClick = { action = Action.FUND_TRANSFER }) { Text(S.fundTransfer) }
-                    OutlinedButton(onClick = { action = Action.CASH_TRANSFER }) { Text(S.cashTransfer) }
+                    // Simple mode has one bucket: moving money between funds or accounts is advanced.
+                    if (advanced) OutlinedButton(onClick = { action = Action.FUND_TRANSFER }) { Text(S.fundTransfer) }
+                    if (advanced || cashAccounts.size > 1) OutlinedButton(onClick = { action = Action.CASH_TRANSFER }) { Text(S.cashTransfer) }
                 }
                 Hint(S.paymentNotIncome)
             }
@@ -192,6 +196,7 @@ private fun AdjustDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, c
     var credit by remember { mutableStateOf(true) }
     val amount = rememberMoney(null)
     var fund by remember { mutableStateOf<FundEntity?>(funds.firstOrNull { it.kind == FundKind.OPERATING }) }
+    LaunchedEffect(funds) { if (fund == null) fund = funds.firstOrNull { it.kind == FundKind.OPERATING } }
     var category by remember { mutableStateOf<CategoryEntity?>(null) }
     val date = rememberDate(vm.today, cal)
     var reason by rememberSaveable { mutableStateOf("") }
@@ -203,7 +208,9 @@ private fun AdjustDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, c
         Text(S.adjustmentDirection, style = MaterialTheme.typography.labelMedium)
         SingleChoice(listOf(true, false), credit, { credit = it }) { if (it) S.creditUnit else S.debitUnit }
         NumberInput(S.amount, amount)
-        Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
+        // One bucket in simple mode: corrections go to the building's running money.
+        val advanced by vm.ui.advanced.collectAsState()
+        if (advanced) Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
         Dropdown(S.category, listOf<CategoryEntity?>(null) + categories, category, { category = it }, { it?.name ?: S.none })
         DateInput(S.date, date, vm.today)
         TextInput(S.reasonRequiredHint, reason, { reason = it })

@@ -221,10 +221,10 @@ class BuildingRepository(private val r: Repos) {
             parts.forEach { (part, rate, basis) ->
                 val label = if (parts.size == 1) MONTHLY_CHARGE else "$MONTHLY_CHARGE — $part"
                 r.expenses.saveChargeItem(ChargeItemEntity(newId(), b, label, cat.id, cat.defaultFundId!!, ChargeMode.RATE, rate,
-                    AllocationPolicy.single(basis).encode(), activeFrom = month.start))
+                    AllocationPolicy.single(basis).encode(), activeFrom = month.start, inAdvance = true))
             }
         }
-        r.periods.create(b, month.name, month.start, month.end, month.end + 10)
+        r.periods.create(b, month.name, month.start, month.end)
         b
     }
 
@@ -234,8 +234,9 @@ class BuildingRepository(private val r: Repos) {
      * The short list a new building starts with (the demo keeps the full one below). With a fixed
      * monthly charge every bill is paid from the fund by default, so nothing is charged twice; the
      * inactive «شارژ ماهانه» type only carries the monthly charge and is hidden from the expense form.
-     * Bills each unit pays itself get no type at all. Metered water is always charged by reading,
-     * even on top of a fixed charge: that is the point of the meters.
+     * Bills each unit pays itself get no type at all. Metered water is split by reading only when
+     * the building splits its bills; with a fixed charge it is paid from the fund like every bill
+     * (testers found water charged twice: from the monthly charge and again by meter).
      */
     private fun simpleCategories(op: String, plan: ChargePlan, bills: SharedBills, areasKnown: Boolean): List<Cat> {
         val fixed = plan is ChargePlan.Fixed
@@ -244,7 +245,9 @@ class BuildingRepository(private val r: Repos) {
             when (bills.water) {
                 WaterSetup.OWN -> null
                 WaterSetup.SHARED -> Cat("آب", p(Basis.Occupants), op, water = true)
-                WaterSetup.METERED -> Cat("آب", METERED_WATER, op, water = true)
+                // With a fixed monthly charge the water bill is paid from it too; meters still show who
+                // uses what, and the manager can charge a bill by meter on top («جدا از واحدها»).
+                WaterSetup.METERED -> Cat("آب", if (fixed) AllocationPolicy.FUND_ONLY else METERED_WATER, op, water = true)
             },
             // Heating gas is usually fairest by area; without areas, equally.
             if (bills.gas) Cat("گاز", p(if (areasKnown) Basis.Area else Basis.Equal), op) else null,

@@ -156,7 +156,8 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     var periodSel by remember { mutableStateOf<PeriodEntity?>(period ?: drafts.firstOrNull { (existing?.date ?: vm.today) in it.startDate..it.endDate }) }
     var docRef by rememberSaveable { mutableStateOf(existing?.documentRef ?: "") }
     var notes by rememberSaveable { mutableStateOf(existing?.notes ?: "") }
-    var payNow by rememberSaveable { mutableStateOf(false) }
+    // Most bills are recorded when they are paid from the building's money.
+    var payNow by rememberSaveable { mutableStateOf(true) }
     var saveAsDefault by rememberSaveable { mutableStateOf(false) }
     val policy = rememberPolicyEditor(existing?.policy() ?: AllocationPolicy())
     var policyTouched by remember { mutableStateOf(existing != null) }
@@ -164,13 +165,17 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     var addingSupplier by remember { mutableStateOf(false) }
     var voiding by remember { mutableStateOf(false) }
     var paying by remember { mutableStateOf(false) }
+    val prepaidItems by vm.chargeItems.collectAsState()
+    val prepaid = prepaidItems.any { it.active && it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }
     val paid by derived(vm, existing?.id) { existing?.let { vm.repos.expenses.paid(it.id) } ?: 0L }
     val payments by derived(vm, existing?.id) { existing?.let { vm.repos.db.financeDao().entriesForExpense(it.id) } ?: emptyList() }
 
     // Selecting a category copies its default policy and fund (snapshot; later category edits don't change this expense).
     LaunchedEffect(category?.id) {
         val c = category ?: return@LaunchedEffect
-        if (!policyTouched) policy.reset(c.policy())
+        // With a fixed monthly charge a new bill is covered by it unless the manager chooses
+        // otherwise, whatever the type's own split says (older buildings split water by meter).
+        if (!policyTouched) policy.reset(if (existing == null && prepaid) AllocationPolicy.FUND_ONLY else c.policy())
         if (existing == null) fund = funds.firstOrNull { it.id == c.defaultFundId } ?: funds.firstOrNull { it.kind == FundKind.OPERATING }
         policyTouched = false
     }
@@ -195,8 +200,11 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     }
 
     if (locked && existing != null) {
-        LockedExpense(vm, existing, period, categories, suppliers, funds, units, paid ?: 0, payments.orEmpty(), onPay = { paying = true })
+        LockedExpense(vm, existing, period, categories, suppliers, funds, units, paid ?: 0, payments.orEmpty(), onPay = { paying = true }, onVoid = { voiding = true })
         PaySupplierDialog(vm, existing, paying, paid ?: 0, cash, building) { paying = false }
+        if (voiding) ReasonDialog(S.voidExpense, S.voidCascadeHint, { voiding = false }) { reason ->
+            vm.run(S.done, onSuccess = { voiding = false; nav.popBackStack() }) { vm.repos.expenses.void(existing.id, reason) }
+        }
         return
     }
     var details by rememberSaveable { mutableStateOf(existing != null && (existing.supplierId != null || existing.documentRef.isNotBlank() || existing.notes.isNotBlank())) }
@@ -222,18 +230,35 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                         Dropdown(S.supplier, listOf<SupplierEntity?>(null) + suppliers, supplier, { supplier = it }, { it?.name ?: S.none }, Modifier.weight(1f))
                         TextButton(onClick = { addingSupplier = true }) { Text(S.add) }
                     }
-                    Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
+                    // One bucket in simple mode: the fund (running costs / reserve) is an advanced idea.
+                    if (advancedMode || fund?.kind != FundKind.OPERATING) Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
                     TextInput(S.documentRef, docRef, { docRef = it })
                     TextInput(S.notes, notes, { notes = it }, singleLine = false)
                 }
             }
         }
         item {
-            SectionCard(S.howToSplit) {
+            SectionCard(if (prepaid) S.whoPays else S.howToSplit) {
+                // With a fixed monthly charge the first question is whether this bill is charged at
+                // all: normally not (the charge covers it); only special bills go to the units.
+                if (prepaid) {
+                    SplitOption(S.coveredByCharge, S.coveredByChargeHint, pol?.fundOnly == true) { policy.reset(AllocationPolicy.FUND_ONLY); policyTouched = true }
+                    SplitOption(S.chargeExtra, S.chargeExtraHint, pol != null && !pol.fundOnly) {
+                        if (pol?.fundOnly != false) {
+                            val own = category?.policy()?.takeIf { !it.fundOnly }
+                            val meterWater = category?.isWater == true && meters.isNotEmpty()
+                            policy.reset(own ?: if (meterWater) com.github.opscalehub.dong.data.METERED_WATER else AllocationPolicy.single(Basis.Equal))
+                            policyTouched = true
+                        }
+                    }
+                    if (pol?.fundOnly != false) return@SectionCard
+                    Text(S.howToSplitExtra, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+                }
                 // Simple mode: a few named choices with what each one means. Advanced mode adds the
                 // last-used policy and the full formula editor.
                 val last = expenses.filter { it.categoryId == category?.id && it.id != existing?.id && it.status == ExpenseStatus.ACTIVE }.maxByOrNull { it.createdAt }
-                val options = plainSplits((meters.isNotEmpty() && category?.isWater == true) || advancedMode, spaces.isNotEmpty(), chargeItems.any { it.active }) + buildList {
+                val options = plainSplits((meters.isNotEmpty() && category?.isWater == true) || advancedMode, spaces.isNotEmpty(), chargeItems.any { it.active })
+                    .filter { !prepaid || !it.third.fundOnly } + buildList {
                     if (advancedMode) last?.let { add(Triple(S.presetLast, policySummary(it.policy()), it.policy())) }
                 }
                 // Multipliers: a weighted split edited as «۱×، ۲×…» per unit (e.g. elevator by floor).
@@ -268,11 +293,11 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
             val preview by derived(vm, amt, pol, periodSel?.id) {
                 if (amt == null || amt == 0L || pol == null) null else vm.repos.expenses.previewAllocation(building.id, periodSel?.id, amt, pol)
             }
-            SectionCard(S.whoPays) {
+            SectionCard(if (prepaid) S.howMuchEach else S.whoPays) {
                 val pv = preview
                 when {
                     amt == null || amt == 0L -> Hint(S.previewNeedsAmount)
-                    pol?.fundOnly == true -> Hint(S.fundOnly)
+                    pol?.fundOnly == true -> Hint(if (prepaid) S.coveredByChargeHint else S.fundOnly)
                     pv == null -> Hint(S.empty)
                     // The preview runs under an internal source id; drop it so messages don't show «preview».
                     !pv.valid -> pv.issues.filter { it.blocking }.distinctBy { it.copy(sourceId = null) }
@@ -328,7 +353,7 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
         }, canConfirm = name.isNotBlank()) { TextInput(S.name, name, { name = it }) }
     }
     if (voiding && existing != null) {
-        ReasonDialog(S.voidExpense, S.reverseHint, { voiding = false }) { reason ->
+        ReasonDialog(S.voidExpense, S.voidCascadeHint, { voiding = false }) { reason ->
             vm.run(S.done, onSuccess = { voiding = false; nav.popBackStack() }) { vm.repos.expenses.void(existing.id, reason) }
         }
     }
@@ -496,6 +521,7 @@ fun ChargeItemsScreen(vm: AppViewModel) {
         val from = rememberDate(target.activeFrom, building.calendar)
         val to = rememberDate(target.activeTo, building.calendar)
         var active by remember(target.id) { mutableStateOf(target.active) }
+        var inAdvance by remember(target.id) { mutableStateOf(target.inAdvance) }
         val policy = rememberPolicyEditor(target.policy().let { if (target.mode == ChargeMode.WATER_TARIFF) it else it })
         val close = { editing = null; creating = false }
         val pol = if (mode == ChargeMode.WATER_TARIFF) policy.toPolicy()?.let { p ->
@@ -505,12 +531,12 @@ fun ChargeItemsScreen(vm: AppViewModel) {
             vm.run(S.saved, onSuccess = close) {
                 vm.repos.expenses.saveChargeItem(target.copy(name = name, categoryId = cat!!.id, fundId = fund!!.id, mode = mode,
                     amountMinor = if (mode == ChargeMode.WATER_TARIFF) 0 else amount.value!!, policyJson = pol!!.encode(), tariffId = tariff?.id,
-                    activeFrom = from.value!!, activeTo = to.value, active = active))
+                    activeFrom = from.value!!, activeTo = to.value, active = active, inAdvance = inAdvance && mode != ChargeMode.WATER_TARIFF))
             }
         }, canConfirm = name.isNotBlank() && cat != null && fund != null && from.value != null && pol != null && (mode == ChargeMode.WATER_TARIFF || amount.valid)) {
             TextInput(S.name, name, { name = it })
             Dropdown(S.category, categories, cat, { cat = it }, { it.name })
-            Dropdown(S.fund, funds, fund, { fund = it }, { f: FundEntity -> f.name })
+            if (advanced) Dropdown(S.fund, funds, fund, { fund = it }, { f: FundEntity -> f.name })
             Text(S.chargeMode, style = MaterialTheme.typography.labelMedium)
             SingleChoice(ChargeMode.entries, mode, { mode = it }) { Fa.chargeMode(it) }
             when (mode) {
@@ -521,6 +547,7 @@ fun ChargeItemsScreen(vm: AppViewModel) {
             DateInput(S.effectiveFrom, from, vm.today)
             DateInput(S.effectiveTo, to, vm.today, allowEmpty = true)
             SwitchRow(S.active, active, { active = it })
+            if (mode != ChargeMode.WATER_TARIFF) SwitchRow(S.inAdvance, inAdvance, { inAdvance = it })
             PolicyEditor(policy, units, spaces, allowFundOnly = false)
         }
     }
@@ -555,7 +582,7 @@ private fun LockedExpense(
     vm: AppViewModel, e: ExpenseEntity, period: PeriodEntity?,
     categories: List<com.github.opscalehub.dong.data.db.CategoryEntity>, suppliers: List<SupplierEntity>,
     funds: List<com.github.opscalehub.dong.data.db.FundEntity>, units: List<com.github.opscalehub.dong.data.db.UnitEntity>,
-    paid: Long, payments: List<com.github.opscalehub.dong.data.db.JournalEntryEntity>, onPay: () -> Unit,
+    paid: Long, payments: List<com.github.opscalehub.dong.data.db.JournalEntryEntity>, onPay: () -> Unit, onVoid: () -> Unit,
 ) {
     val b by vm.building.collectAsState()
     val building = b ?: return
@@ -570,7 +597,8 @@ private fun LockedExpense(
                 KeyValue(S.category, categories.firstOrNull { it.id == e.categoryId }?.name ?: "—")
                 KeyValue(S.date, Fmt.date(e.date, building.calendar))
                 e.supplierId?.let { id -> KeyValue(S.supplier, suppliers.firstOrNull { it.id == id }?.name ?: "—") }
-                KeyValue(S.fund, funds.firstOrNull { it.id == e.fundId }?.name ?: "—")
+                val f = funds.firstOrNull { it.id == e.fundId }
+                if (f?.kind != FundKind.OPERATING) KeyValue(S.fund, f?.name ?: "—")
                 if (e.documentRef.isNotBlank()) KeyValue(S.documentRef, e.documentRef)
                 if (e.notes.isNotBlank()) Hint(e.notes)
             }
@@ -601,6 +629,7 @@ private fun LockedExpense(
                 KeyValue(S.outstanding, money(e.amountMinor - paid), strong = true)
                 payments.filter { it.type == EntryType.SUPPLIER_PAYMENT }.forEach { Hint("${Fmt.date(it.entryDate, building.calendar)}، ${it.reference}") }
                 if (paid < e.amountMinor) Button(onClick = onPay, Modifier.fillMaxWidth()) { Text(S.paySupplier) }
+                OutlinedButton(onClick = onVoid, Modifier.fillMaxWidth()) { Text(S.voidExpense) }
             }
         }
     }

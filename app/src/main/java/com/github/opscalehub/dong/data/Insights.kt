@@ -184,10 +184,24 @@ object Insights {
 
     // ------------------------------------------------------------------ unit view
 
-    /** What a unit was charged in a period, by category (effective result, incl. corrections). */
-    fun unitComposition(d: ReportData, unitId: String, periodId: String): List<Pair<String, Long>> =
-        d.periodResults[periodId]?.lines.orEmpty().filter { it.unitId == unitId }
-            .groupBy { it.categoryId }.map { (c, l) -> c to l.sumOf { it.amount } }.filter { it.second != 0L }.sortedByDescending { it.second }
+    /**
+     * What a unit was charged in a period, by category: a closed month's effective result (incl.
+     * corrections); for a month still open, only what is already charged (the monthly charge on
+     * its first day), not the live preview of bills that are charged at closing.
+     */
+    fun unitComposition(d: ReportData, unitId: String, periodId: String): List<Pair<String, Long>> {
+        val p = d.periods.firstOrNull { it.id == periodId }
+        val lines = if (p != null && p.status == com.github.opscalehub.dong.data.db.PeriodStatus.DRAFT) postedCharges(d, periodId).filter { it.first == unitId }.map { it.second to it.third }
+            else d.periodResults[periodId]?.lines.orEmpty().filter { it.unitId == unitId }.map { it.categoryId to it.amount }
+        return lines.groupBy { it.first }.map { (c, l) -> c to l.sumOf { it.second } }.filter { it.second != 0L }.sortedByDescending { it.second }
+    }
+
+    /** Charges already in the journal for a period: (unit, category, amount), reversed pairs removed. */
+    fun postedCharges(d: ReportData, periodId: String): List<Triple<String, String, Long>> {
+        val entries = effectiveEntries(d).filterValues { it.periodId == periodId && it.type in setOf(EntryType.CHARGE, EntryType.PERIOD_CORRECTION) }
+        return d.lines.filter { it.account == AccountKind.RECEIVABLE && it.entryId in entries && it.unitId != null }
+            .map { Triple(it.unitId!!, it.categoryId ?: "", it.amountMinor) }
+    }
 
     /** Unit balance at the end of each period (oldest first). */
     fun unitBalanceHistory(d: ReportData, unitId: String, limit: Int = 12): List<Pair<String, Long>> {

@@ -29,7 +29,8 @@ class BillRepository(private val r: Repos) {
     /** Records that the bill of a closed [periodId] went to [unitId] (one record per hand-over). */
     suspend fun markSent(periodId: String, unitId: String, via: String) = r.tx {
         val p = dao.period(periodId) ?: fail(OpError.NOT_FOUND)
-        if (p.status != PeriodStatus.FINALIZED) fail(OpError.PERIOD_NOT_FINALIZED)
+        // A month can be billed once something is charged for it: at closing, or on its first day with a fixed monthly charge.
+        if (p.status != PeriodStatus.FINALIZED && r.db.financeDao().entries(p.buildingId).none { it.periodId == p.id && it.type == com.github.opscalehub.dong.domain.ledger.EntryType.CHARGE }) fail(OpError.PERIOD_NOT_FINALIZED)
         val u = r.db.buildingDao().unit(unitId) ?: fail(OpError.NOT_FOUND)
         if (u.buildingId != p.buildingId) fail(OpError.INVALID_INPUT)
         dao.insertShare(BillShareEntity(newId(), p.buildingId, periodId, unitId, r.clock.now(), via.take(100)))
@@ -68,6 +69,17 @@ class BillRepository(private val r: Repos) {
     }
 }
 
-/** Units that were charged in [periodId] (the ones that get a bill). */
-fun billedUnits(d: ReportData, periodId: String): Set<String> =
-    d.periodResults[periodId]?.lines.orEmpty().filter { it.amount != 0L }.mapNotNull { it.unitId }.toSet()
+/** Units that were charged in [periodId] (the ones that get a bill); for an open month, those charged in advance. */
+fun billedUnits(d: ReportData, periodId: String): Set<String> {
+    val p = d.periods.firstOrNull { it.id == periodId }
+    return if (p != null && p.status == PeriodStatus.DRAFT)
+        Insights.postedCharges(d, periodId).groupBy { it.first }.filterValues { l -> l.sumOf { it.third } != 0L }.keys
+    else d.periodResults[periodId]?.lines.orEmpty().filter { it.amount != 0L }.mapNotNull { it.unitId }.toSet()
+}
+
+/** A month can be billed once it has charges: when closed, or on its first day with a fixed monthly charge. */
+fun isBilled(d: ReportData, p: com.github.opscalehub.dong.data.db.PeriodEntity): Boolean =
+    p.status == PeriodStatus.FINALIZED || Insights.postedCharges(d, p.id).any { it.third != 0L }
+
+/** The latest month that has a bill (closed, or charged in advance). */
+fun lastBilled(d: ReportData) = d.periods.filter { isBilled(d, it) }.maxByOrNull { it.endDate }

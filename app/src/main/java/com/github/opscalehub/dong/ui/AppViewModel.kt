@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -102,6 +103,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val entries = per { db.financeDao().observeEntries(it) }
     val audit = per { db.financeDao().observeAudit(it) }
     val billShares = per { db.periodDao().observeShares(it) }
+
+    /**
+     * Keeps prepaid months running on their own: with a fixed monthly charge the current month
+     * starts on its first day, and its first-day charge follows later changes (rates, residents,
+     * units). Both are no-ops when nothing changed, so reacting to every write is cheap.
+     */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private val prepaidKeeper = viewModelScope.launch {
+        combine(building, changes) { b, _ -> b?.id }
+            .debounce(800)
+            .collect { id ->
+                if (id == null) return@collect
+                try {
+                    repos.periods.ensureCurrentMonth(id)
+                    repos.periods.refreshAdvances(id)
+                } catch (e: Exception) {
+                    Log.w("Dang", "prepaid month upkeep failed", e)
+                }
+            }
+    }
 
     /** Draft period containing [today], else the most recent draft, else the most recent period. */
     fun currentPeriod(list: List<PeriodEntity>, today: Long): PeriodEntity? =

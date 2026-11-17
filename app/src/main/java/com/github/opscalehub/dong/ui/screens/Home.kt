@@ -91,13 +91,18 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                 if (current == null) {
                     MonthStart(S.thisMonth, S.noPeriod, S.startMonth) {
                         val m = SampleData.month(vm.today)
-                        vm.run(S.saved) { vm.repos.periods.create(building.id, m.name, m.start, m.end, m.end + 10) }
+                        vm.run(S.saved) { vm.repos.periods.create(building.id, m.name, m.start, m.end) }
                     }
                     return@item
                 }
                 val finalized = current.status == PeriodStatus.FINALIZED
                 val water = preview?.water
-                val relevant = water?.meters?.filter { !(it.inactive && it.liters == 0L) }.orEmpty()
+                // Readings are a step only when something is charged by them; with a fixed monthly
+                // charge the meters are just information until a bill is split by meter.
+                val prepaidMonth = chargeItems.any { it.active && it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }
+                val metersUsed = !prepaidMonth || chargeItems.any { it.active && it.mode == com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF } ||
+                    expenses.any { it.periodId == current.id && it.status == ExpenseStatus.ACTIVE && com.github.opscalehub.dong.domain.allocation.AllocationPolicy.decode(it.policyJson).components.any { c -> c.basis is com.github.opscalehub.dong.domain.allocation.Basis.Consumption } }
+                val relevant = if (metersUsed) water?.meters?.filter { !(it.inactive && it.liters == 0L) }.orEmpty() else emptyList()
                 val readDone = relevant.count { it.liters != null }
                 val monthExpenses = expenses.filter { it.periodId == current.id && it.status == ExpenseStatus.ACTIVE }
                 val blocking = preview?.blockingIssues?.size ?: 0
@@ -118,12 +123,19 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                         (preview?.total ?: 0L) == 0L -> S.addExpensesFirst // closing an empty month is pointless
                         else -> S.noIssues
                     }, finalized, true) { nav.navigate(Routes.period(current.id)) })
+                    // A prepaid month is billed on its first day, so sending and collecting start then.
+                    val billed = finalized || report?.let { com.github.opscalehub.dong.data.isBilled(it, current) } == true
                     val send = report?.let { sendProgress(com.github.opscalehub.dong.data.billedUnits(it, current.id), shares, current.id) }
-                    add(StepState(S.stepSend, if (finalized && send != null) S.sentCount.format(Fmt.number(send.first.toLong()), Fmt.number(send.second.toLong())) else S.afterClosing,
-                        send != null && send.second > 0 && send.first >= send.second, finalized) { nav.navigate(Routes.send(current.id)) })
+                    add(StepState(S.stepSend, if (billed && send != null) S.sentCount.format(Fmt.number(send.first.toLong()), Fmt.number(send.second.toLong())) else S.afterClosing,
+                        send != null && send.second > 0 && send.first >= send.second, billed) { nav.navigate(Routes.send(current.id)) })
                     add(StepState(S.stepCollect, coll?.takeIf { it.billed > 0 }?.let { "${money(it.collected)} ${S.of} ${money(it.billed)}" } ?: S.afterClosing,
-                        coll != null && coll.billed > 0 && coll.collected >= coll.billed, finalized) { nav.navigate(Routes.COLLECT) })
+                        coll != null && coll.billed > 0 && coll.collected >= coll.billed, billed) { nav.navigate(Routes.COLLECT) })
                 }
+                    .let { list ->
+                        // A prepaid month starts with sending bills and collecting; closing comes last.
+                        if (!prepaidMonth || finalized) list
+                        else list.filter { it.title in setOf(S.stepSend, S.stepCollect) } + list.filter { it.title !in setOf(S.stepSend, S.stepCollect) }
+                    }
                 MonthHeader(current.name, finalized, steps.count { it.done }, steps.size)
                 Spacer(Modifier.padding(4.dp))
                 SectionCard {
@@ -133,7 +145,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                     Spacer(Modifier.padding(4.dp))
                     MonthStart(S.monthDone, null, S.startNextMonth) {
                         val m = SampleData.month(current.endDate + 1)
-                        vm.run(S.saved) { vm.repos.periods.create(building.id, m.name, m.start, m.end, m.end + 10) }
+                        vm.run(S.saved) { vm.repos.periods.create(building.id, m.name, m.start, m.end) }
                     }
                 }
             }
@@ -149,10 +161,15 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                                 valueColor = if (bal.outstandingDebts > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                                 onClick = { nav.navigate(Routes.UNITS) })
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val reserve = funds.filter { it.kind == FundKind.RESERVE }.sumOf { bal.funds[it.id] ?: 0 }
-                            StatTile(S.reserveFund, money(reserve), Modifier.weight(1f))
-                            StatTile(S.payables, money(bal.payablesTotal), Modifier.weight(1f), onClick = { nav.navigate(Routes.EXPENSES) })
+                        // One bucket: the reserve fund appears only when it is used (or in advanced mode),
+                        // and unpaid bills only when there are some.
+                        val advanced by vm.ui.advanced.collectAsState()
+                        val reserve = funds.filter { it.kind == FundKind.RESERVE }.sumOf { bal.funds[it.id] ?: 0 }
+                        val showReserve = advanced || reserve != 0L
+                        val showPayables = advanced || bal.payablesTotal != 0L
+                        if (showReserve || showPayables) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (showReserve) StatTile(S.reserveFund, money(reserve), Modifier.weight(1f))
+                            if (showPayables) StatTile(S.payables, money(bal.payablesTotal), Modifier.weight(1f), onClick = { nav.navigate(Routes.EXPENSES) })
                         }
                         if (!bal.reconciles) Hint(S.ledgerNotOk, MaterialTheme.colorScheme.error)
                     }

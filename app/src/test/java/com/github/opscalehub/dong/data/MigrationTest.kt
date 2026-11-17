@@ -74,4 +74,22 @@ class MigrationTest {
         db.query("SELECT COUNT(*) FROM bill_shares").use { c -> c.moveToFirst(); assertEquals(0L, c.getLong(0)) }
         db.close()
     }
+
+    @Test
+    fun `migrate 4 to 5 makes the wizard monthly charge prepaid and nothing else`() {
+        helper.createDatabase("m45.db", 4).apply {
+            execSQL("INSERT INTO buildings (id, name, address, currencyCode, currencyName, minorDigits, roundingIncrement, occupancyBasis, calendar, notes, createdAt, displayCurrencyName, displayDivisor) VALUES ('b1','ساختمان','', 'IRR','ریال',0,1000,'DAY_WEIGHTED','JALALI','',1,'تومان',10)")
+            execSQL("INSERT INTO categories (id, buildingId, name, defaultPolicyJson, defaultFundId, isWater, active, sortOrder) VALUES ('c1','b1','شارژ ماهانه','{}','f1',0,0,1)")
+            execSQL("INSERT INTO categories (id, buildingId, name, defaultPolicyJson, defaultFundId, isWater, active, sortOrder) VALUES ('c2','b1','حق اندوخته','{}','f2',0,1,2)")
+            execSQL("INSERT INTO charge_items (id, buildingId, name, categoryId, fundId, mode, amountMinor, policyJson, activeFrom, active) VALUES ('i1','b1','شارژ ماهانه','c1','f1','RATE',5000000,'{}',1,1)")
+            execSQL("INSERT INTO charge_items (id, buildingId, name, categoryId, fundId, mode, amountMinor, policyJson, activeFrom, active) VALUES ('i2','b1','اندوخته','c2','f2','TOTAL',9000000,'{}',1,1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m45.db", 5, true, *Migrations.ALL)
+        db.query("SELECT id, inAdvance FROM charge_items ORDER BY id").use { c ->
+            c.moveToFirst(); assertEquals(1, c.getInt(1))
+            c.moveToNext(); assertEquals(0, c.getInt(1))
+        }
+        db.close()
+    }
 }

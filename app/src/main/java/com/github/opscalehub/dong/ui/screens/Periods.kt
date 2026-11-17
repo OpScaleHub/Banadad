@@ -87,7 +87,10 @@ fun PeriodsScreen(vm: AppViewModel, nav: NavController) {
         var name by rememberSaveable { mutableStateOf(m.name) }
         val start = rememberDate(m.start, building.calendar)
         val end = rememberDate(m.end, building.calendar)
-        val due = rememberDate(m.end + 10, building.calendar)
+        // A fixed monthly charge is paid in advance, by the 10th; split bills 10 days after the month.
+        val chargeItems by vm.chargeItems.collectAsState()
+        val prepaid = chargeItems.any { it.active && it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }
+        val due = rememberDate(if (prepaid) m.start + com.github.opscalehub.dong.data.PREPAID_DUE_DAYS - 1 else m.end + 10, building.calendar)
         FormDialog(S.newPeriod, { creating = false }, {
             vm.run(S.saved, onSuccess = { creating = false }) { vm.repos.periods.create(building.id, name, start.value!!, end.value!!, due.value) }
         }, canConfirm = name.isNotBlank() && start.value != null && end.value != null && end.value!! >= start.value!!) {

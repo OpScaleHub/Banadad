@@ -115,7 +115,6 @@ class RepositoryTest {
         w.r.expenses.update(e.copy(amountMinor = 11_000_000), "اصلاح فاکتور")
         assertEquals(6_000_000L, w.r.finance.balances(w.b).payablesTotal)
         assertEquals(1, w.db.financeDao().entriesForExpense(e.id).count { it.type == EntryType.REVERSAL })
-        expectError(OpError.HAS_PAYMENTS) { w.r.expenses.void(e.id, "اشتباه") }
         val payment = w.db.financeDao().entriesForExpense(e.id).first { it.type == EntryType.SUPPLIER_PAYMENT }
         w.r.finance.reverse(payment.id, "پرداخت اشتباه")
         expectError(OpError.ALREADY_REVERSED) { w.r.finance.reverse(payment.id, "دوباره") }
@@ -452,8 +451,9 @@ class RepositoryTest {
         assertEquals(1, meters.count { it.role == com.github.opscalehub.dong.domain.model.MeterRole.MAIN })
         assertEquals(ids.toSet(), meters.mapNotNull { it.unitId }.toSet())
         val cats = w.db.expenseDao().categories(b).associateBy { it.name }
-        // Metered water is charged by reading even with a fixed monthly charge; gas without areas goes equally.
-        assertEquals(METERED_WATER, cats.getValue("آب").policy())
+        // With a fixed monthly charge the water bill is paid from it too (charging it again by meter
+        // is a choice made per bill); gas without areas goes equally.
+        assertTrue(cats.getValue("آب").policy().fundOnly)
         assertTrue(cats.getValue("گاز").policy().fundOnly)
         assertTrue("برق مشاعات" in cats)
         val spaces = w.db.buildingDao().spaces(b)

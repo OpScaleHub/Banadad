@@ -64,10 +64,19 @@ class BackupRepository(private val r: Repos, private val appVersion: String) {
         BackupCodec.encode(payload, appVersion, com.github.opscalehub.dong.data.db.DongDatabase.VERSION, r.clock.now())
     }
 
+    /**
+     * Brings a backup from an older schema to today's meaning, as the database migrations do:
+     * before v5 the wizard's monthly charge was charged at closing; now it is prepaid.
+     */
+    private fun upgrade(p: BackupPayload, schema: Int): BackupPayload = if (schema >= 5) p else p.copy(buildings = p.buildings.map { b ->
+        val monthly = b.categories.filter { it.name == MONTHLY_CHARGE && !it.active }.map { it.id }.toSet()
+        b.copy(chargeItems = b.chargeItems.map { if (it.categoryId in monthly && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF) it.copy(inAdvance = true) else it })
+    })
+
     /** Decodes, validates and compares a backup with local data. Never writes. */
     suspend fun preview(text: String): RestorePreview {
         val (header, payload) = try {
-            BackupCodec.decode(text, com.github.opscalehub.dong.data.db.DongDatabase.VERSION)
+            BackupCodec.decode(text, com.github.opscalehub.dong.data.db.DongDatabase.VERSION).let { (h, p) -> h to upgrade(p, h.schemaVersion) }
         } catch (e: BackupException) {
             return RestorePreview(BackupHeader(0, "", 0, 0), BackupPayload(emptyList()), emptyList(), listOf(e.problem))
         }

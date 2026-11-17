@@ -152,6 +152,8 @@ class EndToEndTest {
         clickLast("نظافت") // expense-type chip; its default split is by number of people
         type("مبلغ", "100000")
         type("توضیح", "نظافت آزمون")
+        // «paid now» is on by default; this scenario pays the supplier later.
+        clickLast("پولش همین حالا از صندوق ساختمان داده شد")
         // The live preview is below the fold; scroll to it and check it lists both units.
         scrollTo("چه کسی چقدر می‌پردازد")
         rule.waitUntil(5_000) { rule.onAllNodesWithText("۵۰٬۰۰۰", substring = true).fetchSemanticsNodes().size >= 2 }

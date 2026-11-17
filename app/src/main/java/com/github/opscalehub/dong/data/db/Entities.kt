@@ -257,6 +257,8 @@ data class ChargeItemEntity(
     val activeFrom: Long,
     val activeTo: Long? = null,
     val active: Boolean = true,
+    /** Charged on the month's first day (prepaid monthly charge) instead of when the month closes. */
+    val inAdvance: Boolean = false,
 )
 
 @Serializable

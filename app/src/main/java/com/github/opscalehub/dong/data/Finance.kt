@@ -94,13 +94,20 @@ class ExpenseRepository(private val r: Repos) {
         r.journal.audit(e.buildingId, "UPDATE_EXPENSE", "expense", e.id, "${e.description}: مبلغ ${Fmt.money(old.amountMinor)} ← ${Fmt.money(e.amountMinor)} $reason")
     }
 
-    /** Voids a draft expense (reverses its journal entry). Payments must be reversed first. */
+    /**
+     * Cancels an expense in one step: its payments are reversed (the money is back in the cash
+     * box), the expense is reversed, and if its month is already closed every unit is credited
+     * the share it was charged (a revision of that month, dated today).
+     */
     suspend fun void(expenseId: String, reason: String) = r.tx {
         if (reason.isBlank()) fail(OpError.REASON_REQUIRED)
         val e = dao.expense(expenseId) ?: fail(OpError.NOT_FOUND)
         if (e.status == ExpenseStatus.VOIDED) fail(OpError.ALREADY_REVERSED)
-        requireDraftPeriod(e.periodId)
-        if (paid(expenseId) != 0L) fail(OpError.HAS_PAYMENTS)
+        val fin = r.db.financeDao()
+        fin.entriesForExpense(expenseId).filter { it.type == EntryType.SUPPLIER_PAYMENT && fin.reversalCount(it.id) == 0 }
+            .forEach { reverseInternal(it.id, "ابطال هزینه: $reason", e.id) }
+        val period = e.periodId?.let { r.db.periodDao().period(it) }
+        if (period?.status == PeriodStatus.FINALIZED) r.periods.removeExpense(period.id, e.id, reason)
         e.journalEntryId?.let { reverseInternal(it, "ابطال هزینه: $reason", e.id) }
         dao.updateExpense(e.copy(status = ExpenseStatus.VOIDED))
         r.journal.audit(e.buildingId, "VOID_EXPENSE", "expense", e.id, reason)
@@ -375,6 +382,9 @@ class FinanceRepository(private val r: Repos) {
     }
 }
 
+/** Days a prepaid month gives units to pay its charge: until the 10th. */
+const val PREPAID_DUE_DAYS = 10
+
 class PeriodRepository(private val r: Repos) {
     private val dao get() = r.db.periodDao()
 
@@ -382,9 +392,97 @@ class PeriodRepository(private val r: Repos) {
         if (name.isBlank() || end < start) fail(OpError.INVALID_INPUT)
         if (dao.periods(buildingId).any { start <= it.endDate && end >= it.startDate }) fail(OpError.PERIOD_OVERLAP)
         val id = newId()
-        dao.insertPeriod(PeriodEntity(id, buildingId, name.trim(), start, end, due, createdAt = r.clock.now()))
+        dao.insertPeriod(PeriodEntity(id, buildingId, name.trim(), start, end, due ?: defaultDue(buildingId, start, end), createdAt = r.clock.now()))
         r.journal.audit(buildingId, "CREATE_PERIOD", "period", id, "$name: ${Fmt.date(start)} تا ${Fmt.date(end)}")
+        postAdvance(id)
         id
+    }
+
+    /** True when the building has a fixed monthly charge (amounts known before the month starts). */
+    suspend fun prepaid(buildingId: String): Boolean = r.db.expenseDao().chargeItems(buildingId).any { it.active && it.inAdvance && it.mode != ChargeMode.WATER_TARIFF }
+
+    /**
+     * Payment deadline of a new month. A fixed monthly charge is paid in advance (common in Iran):
+     * by the 10th of the month itself. Split bills are known only after the month: 10 days after it.
+     */
+    suspend fun defaultDue(buildingId: String, start: Long, end: Long): Long =
+        if (prepaid(buildingId)) minOf(start + PREPAID_DUE_DAYS - 1, end) else end + 10
+
+    /** Active advance-charge entries of a draft month (normally one). */
+    private suspend fun advanceEntries(p: PeriodEntity): List<JournalEntryEntity> {
+        val fin = r.db.financeDao()
+        return fin.entries(p.buildingId).filter { it.type == EntryType.CHARGE && it.periodId == p.id && it.id != p.chargeEntryId && fin.reversalCount(it.id) == 0 }
+    }
+
+    /** Amounts already charged for [p] in advance, per (unit, category, fund). */
+    private suspend fun advanced(p: PeriodEntity): Map<Triple<String, String, String>, Long> {
+        val fin = r.db.financeDao()
+        val out = LinkedHashMap<Triple<String, String, String>, Long>()
+        advanceEntries(p).forEach { e ->
+            fin.linesOf(e.id).filter { it.account == AccountKind.RECEIVABLE }
+                .forEach { out.merge(Triple(it.unitId!!, it.categoryId!!, it.fundId!!), it.amountMinor, Long::plus) }
+        }
+        return out.filterValues { it != 0L }
+    }
+
+    private fun aggregate(lines: List<ChargeLine>): Map<Triple<String, String, String>, Long> {
+        val out = LinkedHashMap<Triple<String, String, String>, Long>()
+        lines.forEach { out.merge(Triple(it.unitId, it.categoryId, it.fundId), it.amount, Long::plus) }
+        return out.filterValues { it != 0L }
+    }
+
+    private fun toLines(m: Map<Triple<String, String, String>, Long>) =
+        m.map { (k, v) -> ChargeLine(k.first, com.github.opscalehub.dong.domain.period.SourceType.CHARGE_ITEM, "", k.second, k.third, v) }
+
+    /**
+     * Charges a draft month's fixed amounts (the monthly charge; not water by tariff, which needs
+     * readings) on its first day, so units owe them from day one and can be billed at once.
+     * Idempotent: when occupancy, units or rates change, the old advance entry is reversed on its
+     * own date and a new one posted. Closing the month later posts only the rest (see [finalize]).
+     * Does nothing for months that have not started yet or are closed.
+     */
+    suspend fun postAdvance(periodId: String): String? = r.tx {
+        val p = dao.period(periodId) ?: fail(OpError.NOT_FOUND)
+        val existing = if (p.status == PeriodStatus.DRAFT) advanceEntries(p) else return@tx null
+        val wanted = if (p.startDate > r.clock.today()) emptyMap() else {
+            val input = buildInput(periodId)
+            val flagged = r.db.expenseDao().chargeItems(p.buildingId).filter { it.inAdvance }.map { it.id }.toSet()
+            val fixed = input.chargeItems.filter { it.mode != ChargeMode.WATER_TARIFF && it.id in flagged }.map { it.id }.toSet()
+            aggregate(PeriodCalculator.calculate(input).lines.filter { it.sourceType == com.github.opscalehub.dong.domain.period.SourceType.CHARGE_ITEM && it.sourceId in fixed })
+        }
+        if (wanted == advanced(p) && existing.all { it.entryDate == p.startDate }) return@tx existing.firstOrNull()?.id
+        val fin = r.db.financeDao()
+        existing.forEach { e ->
+            r.journal.post(p.buildingId, EntryType.REVERSAL, e.entryDate, PostingRules.reversal(fin.linesOf(e.id).map { it.toPosting() }),
+                "به‌روزرسانی شارژ اول ماه ${p.name}", periodId = p.id, reversesEntryId = e.id)
+        }
+        if (wanted.isEmpty()) null
+        else r.journal.post(p.buildingId, EntryType.CHARGE, p.startDate, PostingRules.charges(toLines(wanted)), "شارژ ماه ${p.name} (اول ماه)", periodId = p.id)
+    }
+
+    /** Brings every started draft month's advance charge up to date (cheap when nothing changed). */
+    suspend fun refreshAdvances(buildingId: String) {
+        dao.periods(buildingId).filter { it.status == PeriodStatus.DRAFT }.forEach { postAdvance(it.id) }
+    }
+
+    /**
+     * Fixed-charge buildings run month by month without the manager starting each one: the current
+     * month is created on its first day (if it does not overlap an existing one) and charged.
+     */
+    suspend fun ensureCurrentMonth(buildingId: String): String? = r.tx {
+        if (!prepaid(buildingId)) return@tx null
+        val all = dao.periods(buildingId)
+        if (all.isEmpty()) return@tx null
+        // Months missed while the app was not opened are created too, so none goes uncharged.
+        var next = all.maxOf { it.endDate } + 1
+        var last: String? = null
+        var guard = 0
+        while (next <= r.clock.today() && guard++ < 24) {
+            val m = SampleData.month(next)
+            last = create(buildingId, m.name, m.start, m.end)
+            next = m.end + 1
+        }
+        last
     }
 
     suspend fun updateDraft(p: PeriodEntity) = r.tx {
@@ -393,12 +491,19 @@ class PeriodRepository(private val r: Repos) {
         if (p.name.isBlank() || p.endDate < p.startDate) fail(OpError.INVALID_INPUT)
         if (dao.periods(p.buildingId).any { it.id != p.id && p.startDate <= it.endDate && p.endDate >= it.startDate }) fail(OpError.PERIOD_OVERLAP)
         dao.updatePeriod(old.copy(name = p.name.trim(), startDate = p.startDate, endDate = p.endDate, dueDate = p.dueDate))
+        postAdvance(p.id)
     }
 
     suspend fun deleteDraft(periodId: String) = r.tx {
         val p = dao.period(periodId) ?: fail(OpError.NOT_FOUND)
         if (p.status != PeriodStatus.DRAFT) fail(OpError.PERIOD_FINALIZED)
         r.db.expenseDao().activeExpensesForPeriod(periodId).forEach { r.db.expenseDao().updateExpense(it.copy(periodId = null)) }
+        // The month's advance charge goes with it (reversed, so the journal keeps both).
+        val fin = r.db.financeDao()
+        advanceEntries(p).forEach { e ->
+            r.journal.post(p.buildingId, EntryType.REVERSAL, e.entryDate, PostingRules.reversal(fin.linesOf(e.id).map { it.toPosting() }),
+                "حذف ماه ${p.name}", reversesEntryId = e.id)
+        }
         dao.deleteDraft(periodId)
         r.journal.audit(p.buildingId, "DELETE_PERIOD", "period", p.id, p.name)
     }
@@ -444,8 +549,14 @@ class PeriodRepository(private val r: Repos) {
         val input = buildInput(periodId)
         val result = PeriodCalculator.calculate(input)
         if (!result.canFinalize) fail(OpError.PERIOD_HAS_BLOCKING_ISSUES, result.blockingIssues.joinToString { it.code.name })
-        val entryId = if (result.lines.isEmpty()) null else r.journal.post(
-            p.buildingId, EntryType.CHARGE, p.endDate, PostingRules.charges(result.lines), "شارژ دوره ${p.name}", periodId = p.id,
+        // Whatever was already charged on the first day is not charged again: only the rest
+        // (bills split among units, water by tariff, changes during the month) is posted now.
+        val already = advanced(p)
+        val rest = aggregate(result.lines).toMutableMap()
+        already.forEach { (k, v) -> rest.merge(k, -v, Long::plus) }
+        val remaining = rest.filterValues { it != 0L }
+        val entryId = if (remaining.isEmpty()) advanceEntries(p).firstOrNull()?.id else r.journal.post(
+            p.buildingId, EntryType.CHARGE, p.endDate, PostingRules.charges(toLines(remaining)), "شارژ دوره ${p.name}", periodId = p.id,
         )
         val snap = PeriodSnapshot(calculatedAt = r.clock.now(), input = input, result = result)
         dao.updatePeriod(p.copy(status = PeriodStatus.FINALIZED, finalizedAt = r.clock.now(), snapshotJson = snap.encode(), chargeEntryId = entryId))
@@ -461,6 +572,34 @@ class PeriodRepository(private val r: Repos) {
         return PeriodSnapshot.decode(last?.snapshotJson ?: p.snapshotJson!!).result
     }
 
+    /** The snapshot in effect: the latest revision's, else the original. */
+    suspend fun effectiveSnapshot(periodId: String): PeriodSnapshot {
+        val p = dao.period(periodId) ?: fail(OpError.NOT_FOUND)
+        val last = dao.revisions(periodId).maxByOrNull { it.revision }
+        return PeriodSnapshot.decode(last?.snapshotJson ?: p.snapshotJson!!)
+    }
+
+    /**
+     * Takes a voided expense out of a closed month: recalculates the month without it and credits
+     * each unit the share it was charged, as a new revision dated today. Closed history stays as it
+     * was; the credit shows on each unit's statement.
+     */
+    internal suspend fun removeExpense(periodId: String, expenseId: String, reason: String): String? {
+        val p = dao.period(periodId) ?: fail(OpError.NOT_FOUND)
+        if (p.status != PeriodStatus.FINALIZED) fail(OpError.PERIOD_NOT_FINALIZED)
+        val base = effectiveSnapshot(periodId)
+        if (base.input.expenses.none { it.id == expenseId }) return null
+        val input = base.input.copy(expenses = base.input.expenses.filter { it.id != expenseId })
+        val result = PeriodCalculator.calculate(input)
+        val diff = PeriodCorrection.diff(base.result.lines, result.lines)
+        val entryId = if (diff.isEmpty()) null else r.journal.post(p.buildingId, EntryType.PERIOD_CORRECTION, r.clock.today(),
+            PostingRules.charges(diff), "ابطال هزینه در ماه ${p.name}: $reason", periodId = p.id, expenseId = expenseId)
+        val revision = (dao.revisions(periodId).maxOfOrNull { it.revision } ?: 0) + 1
+        dao.insertRevision(PeriodRevisionEntity(newId(), periodId, revision, r.clock.now(), "ابطال هزینه: $reason",
+            PeriodSnapshot(calculatedAt = r.clock.now(), input = input, result = result).encode(), entryId))
+        return entryId
+    }
+
     data class CorrectionPreview(val input: PeriodInput, val result: PeriodResult, val diff: List<ChargeLine>)
 
     /**
@@ -471,7 +610,7 @@ class PeriodRepository(private val r: Repos) {
     suspend fun previewCorrection(periodId: String): CorrectionPreview {
         val p = dao.period(periodId) ?: fail(OpError.NOT_FOUND)
         if (p.status != PeriodStatus.FINALIZED) fail(OpError.PERIOD_NOT_FINALIZED)
-        val original = PeriodSnapshot.decode(p.snapshotJson!!).input
+        val original = effectiveSnapshot(periodId).input
         val current = buildInput(periodId)
         // Unit membership and active flags come from the snapshot: deactivating a unit later, or adding
         // a new one, must not move charges of an already-finalized period. Areas may be corrected.
