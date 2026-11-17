@@ -74,18 +74,6 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
 
     WithFab(S.payNow, { paying = true }) {
         ScreenList {
-            item {
-                val offer by vm.ui.surveyOffer.collectAsState()
-                if (offer && System.currentTimeMillis() - vm.ui.firstUse > com.github.opscalehub.dong.ui.UiPrefs.SURVEY_AFTER_MS) {
-                    SectionCard {
-                        Text(S.surveyOffer, style = MaterialTheme.typography.bodyLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { nav.navigate(com.github.opscalehub.dong.ui.Routes.SURVEY) }) { Text(S.surveyYes) }
-                            TextButton(onClick = { vm.ui.closeSurveyOffer() }) { Text(S.surveyNo) }
-                        }
-                    }
-                }
-            }
             // ---- month header ------------------------------------------------
             item {
                 if (current == null) {
@@ -161,12 +149,11 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                                 valueColor = if (bal.outstandingDebts > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                                 onClick = { nav.navigate(Routes.UNITS) })
                         }
-                        // One bucket: the reserve fund appears only when it is used (or in advanced mode),
-                        // and unpaid bills only when there are some.
-                        val advanced by vm.ui.advanced.collectAsState()
+                        // One bucket: the reserve fund appears only when it holds money (older or demo
+                        // buildings), and unpaid bills only when there are some.
                         val reserve = funds.filter { it.kind == FundKind.RESERVE }.sumOf { bal.funds[it.id] ?: 0 }
-                        val showReserve = advanced || reserve != 0L
-                        val showPayables = advanced || bal.payablesTotal != 0L
+                        val showReserve = reserve != 0L
+                        val showPayables = bal.payablesTotal != 0L
                         if (showReserve || showPayables) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (showReserve) StatTile(S.reserveFund, money(reserve), Modifier.weight(1f))
                             if (showPayables) StatTile(S.payables, money(bal.payablesTotal), Modifier.weight(1f), onClick = { nav.navigate(Routes.EXPENSES) })

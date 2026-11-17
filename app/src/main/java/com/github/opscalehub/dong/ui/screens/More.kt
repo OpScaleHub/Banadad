@@ -45,35 +45,30 @@ private data class Entry(val label: String, val hint: String, val icon: ImageVec
 
 /**
  * Everything that is not a daily task, grouped by what the manager is looking for. Simple mode
- * shows only what this building uses (meters, parking, a monthly charge); advanced shows all.
+ * shows only what this building uses (meters, parking, a monthly charge).
  */
 @Composable
 fun MoreScreen(vm: AppViewModel, nav: NavController) {
-    val advanced by vm.ui.advanced.collectAsState()
     val meters by vm.meters.collectAsState()
     val spaces by vm.spaces.collectAsState()
     val charges by vm.chargeItems.collectAsState()
     val groups = listOf(
         listOfNotNull(
-            // Simple mode: the month's readings are a Home step and a button on the meters screen.
-            Entry(S.readingsBatch, S.stepReadings, Icons.Filled.Refresh, Routes.READINGS).takeIf { advanced && meters.isNotEmpty() },
             Entry(S.monthsAndClosing, S.menuMonths, Icons.Filled.DateRange, Routes.PERIODS),
             Entry(S.transactions, S.menuTransactions, Icons.AutoMirrored.Filled.List, Routes.FINANCE),
         ),
         listOfNotNull(
-            Entry(S.chargeItems, S.menuCharges, Icons.Filled.AccountBox, Routes.CHARGE_ITEMS).takeIf { advanced || charges.isNotEmpty() },
+            Entry(S.chargeItems, S.menuCharges, Icons.Filled.AccountBox, Routes.CHARGE_ITEMS).takeIf { charges.isNotEmpty() },
             Entry(S.categories, S.menuCategories, Icons.Filled.ShoppingCart, Routes.CATEGORIES),
             Entry(S.metersAndTariffs, S.menuMeters, Icons.Filled.Info, Routes.WATER),
-            Entry(S.parking, S.menuParking, Icons.Filled.Place, Routes.PARKING).takeIf { advanced || spaces.isNotEmpty() },
+            Entry(S.parking, S.menuParking, Icons.Filled.Place, Routes.PARKING).takeIf { spaces.isNotEmpty() },
         ),
         listOfNotNull(
             Entry(S.buildingsAndSwitch, S.switchBuilding, Icons.Filled.Home, Routes.BUILDINGS),
             Entry(S.settings, S.backupTitle, Icons.Filled.Settings, Routes.SETTINGS),
-            Entry(S.auditLog, S.menuAudit, Icons.Filled.Warning, Routes.AUDIT).takeIf { advanced },
         ),
         listOf(
             Entry(S.feedbackLong, S.feedbackMenuHint, Icons.Filled.Email, Routes.FEEDBACK),
-            Entry(S.survey, S.surveyMenuHint, Icons.Filled.Star, Routes.SURVEY),
         ),
     )
     ScreenList {

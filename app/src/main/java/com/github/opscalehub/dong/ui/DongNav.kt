@@ -51,7 +51,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.github.opscalehub.dong.i18n.MoneyFormat
-import com.github.opscalehub.dong.ui.screens.AuditScreen
 import com.github.opscalehub.dong.ui.screens.BuildingsScreen
 import com.github.opscalehub.dong.ui.screens.CategoriesScreen
 import com.github.opscalehub.dong.ui.screens.ChargeItemsScreen
@@ -71,7 +70,6 @@ import com.github.opscalehub.dong.ui.screens.SetupWizard
 import com.github.opscalehub.dong.ui.screens.UnitScreen
 import com.github.opscalehub.dong.ui.screens.SendBillsScreen
 import com.github.opscalehub.dong.ui.screens.FeedbackScreen
-import com.github.opscalehub.dong.ui.screens.SurveyScreen
 import com.github.opscalehub.dong.ui.screens.UnitsScreen
 import com.github.opscalehub.dong.ui.screens.WaterScreen
 import com.github.opscalehub.dong.ui.screens.WelcomeScreen
@@ -92,10 +90,8 @@ object Routes {
     const val PERIODS = "periods"
     const val FINANCE = "finance"
     const val SETTINGS = "settings"
-    const val AUDIT = "audit"
     const val COLLECT = "collect"
     const val FEEDBACK = "feedback"
-    const val SURVEY = "survey"
     fun send(periodId: String) = "send/$periodId"
     fun unit(id: String) = "unit/$id"
     fun meter(id: String) = "meter/$id"
@@ -159,14 +155,6 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
                         navigationIcon = {
                             if (!isTab) IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, S.back) }
                         },
-                        actions = {
-                            // «نظر» on every screen: a picture of this screen goes with the feedback.
-                            if (route != Routes.FEEDBACK && route != Routes.SURVEY) TextButton(onClick = {
-                                vm.feedbackShot = runCatching { view.rootView.drawToBitmap() }.getOrNull()
-                                vm.feedbackFrom = titleFor(route)
-                                nav.navigate(Routes.FEEDBACK)
-                            }) { Text(S.feedback) }
-                        },
                     )
                     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
@@ -208,10 +196,8 @@ private fun titleFor(route: String): String = when {
     route == Routes.PERIODS -> S.periods
     route == Routes.FINANCE -> S.transactions
     route == Routes.SETTINGS -> S.settings
-    route == Routes.AUDIT -> S.auditLog
     route == Routes.COLLECT -> S.collectTitle
     route == Routes.FEEDBACK -> S.feedbackLong
-    route == Routes.SURVEY -> S.survey
     route.startsWith("send/") -> S.stepSend
     route == Routes.BUILDINGS -> S.buildings
     route == Routes.SETUP -> S.setupTitle
@@ -233,7 +219,6 @@ private fun DongNavHost(nav: NavHostController, vm: AppViewModel) {
         composable(Routes.REPORTS) { ReportsScreen(vm, nav) }
         composable(Routes.MORE) { MoreScreen(vm, nav) }
         composable(Routes.FEEDBACK) { FeedbackScreen(vm, nav) }
-        composable(Routes.SURVEY) { SurveyScreen(vm, nav) }
         composable(Routes.BUILDINGS) { BuildingsScreen(vm, nav) }
         composable(Routes.SETUP) { SetupWizard(vm, onDone = { nav.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } }) }
         composable(Routes.READINGS) { ReadingsScreen(vm, nav) }
@@ -248,6 +233,5 @@ private fun DongNavHost(nav: NavHostController, vm: AppViewModel) {
         composable("period/{id}") { PeriodScreen(vm, nav, it.arguments?.getString("id")!!) }
         composable(Routes.FINANCE) { FinanceScreen(vm, nav) }
         composable(Routes.SETTINGS) { SettingsScreen(vm) }
-        composable(Routes.AUDIT) { AuditScreen(vm) }
     }
 }

@@ -42,8 +42,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val ui = UiPrefs(app)
 
     /** Picture of the screen the person was on when they tapped «نظر», and that screen's title. */
-    var feedbackShot: android.graphics.Bitmap? = null
-    var feedbackFrom: String? = null
     private val db = container.db
     private val prefs = app.getSharedPreferences("ui", Context.MODE_PRIVATE)
 

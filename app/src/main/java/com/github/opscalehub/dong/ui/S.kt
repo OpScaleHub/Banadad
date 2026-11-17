@@ -69,7 +69,7 @@ object S {
     const val menuTransactions = "دریافت‌ها، پرداخت‌ها و اصلاح حساب"
     const val menuMeters = "شماره‌های هر ماه، و کنتور برای همه واحدها"
     const val menuParking = "هر جای پارک مال کدام واحد است"
-    const val menuCategories = "روش تقسیم و صندوق هر نوع هزینه"
+    const val menuCategories = "روش تقسیم هر نوع هزینه"
     const val menuCharges = "مبلغی که هر واحد هر ماه می‌دهد، و تغییر آن"
     const val menuAudit = "هر تغییری که در حساب‌ها داده شده"
     const val deleteBuilding = "حذف ساختمان"
@@ -595,10 +595,16 @@ object S {
 
     // feedback and survey (docs/11)
     const val feedback = "نظر"
-    const val feedbackLong = "نظر یا مشکل"
-    const val feedbackMenuHint = "کجا گیج شدید یا چه چیزی را دوست داشتید"
-    const val fbTitle = "نظر درباره برنامه دنگ"
-    const val fbIntro = "به ما بگویید کجا گیج شدید، چه چیزی کار نکرد یا چه چیزی خوب بود. پیام شما با پیام‌رسانی که انتخاب می‌کنید (تلگرام، واتس‌اپ، ایمیل…) برای کسی که برنامه را به شما داده فرستاده می‌شود."
+    const val feedbackLong = "نظر یا گزارش مشکل"
+    const val feedbackMenuHint = "با ایمیل برای سازنده، یا امتیاز در بازار"
+    const val fbIntro = "به ما بگویید کجا گیج شدید، چه چیزی کار نکرد یا چه چیزی خوب بود. پیام شما با ایمیل برای سازنده دنگ (%s) فرستاده می‌شود؛ قبل از فرستادن می‌توانید آن را ببینید و اگر خواستید عکس هم ضمیمه کنید."
+    const val fbSubject = "نظر درباره دنگ"
+    const val fbTo = "به"
+    const val fbSend = "فرستادن با ایمیل"
+    const val fbRateTitle = "امتیاز در بازار"
+    const val fbRateHint = "اگر دنگ به کارتان آمده، در کافه‌بازار امتیاز و نظر بدهید تا مدیرهای دیگر هم پیدایش کنند."
+    const val fbRate = "امتیاز و نظر در بازار"
+    const val fbNoBazaar = "کافه‌بازار روی این گوشی نصب نیست."
     const val fbKind = "نوع"
     const val fbProblem = "مشکل داشتم"
     const val fbConfused = "گیج شدم"
@@ -606,49 +612,15 @@ object S {
     const val fbGood = "خوب بود"
     const val fbDoing = "داشتید چه کاری می‌کردید؟"
     const val fbHappened = "چه اتفاقی افتاد یا چه انتظاری داشتید؟"
-    const val fbShot = "تصویر صفحه"
-    const val fbAttachShot = "تصویر همین صفحه هم فرستاده شود"
-    const val fbShotWarn = "ممکن است نام ساختمان یا مبالغ در تصویر دیده شود."
-    const val fbVoiceHint = "اگر نوشتن سخت است، در پیام‌رسان یک پیام صوتی هم بفرستید. برای فرستادن فیلم از کاری که می‌کنید، از «ضبط صفحه» گوشی استفاده کنید."
-    const val fbScreen = "صفحه"
     const val fbApp = "نسخه برنامه"
     const val fbAndroid = "اندروید"
     const val fbPhone = "گوشی"
-    const val fbMode = "حالت"
     const val fbTextSize = "اندازه متن"
     const val fbUnits = "تعداد واحدها"
-    const val survey = "نظرسنجی کوتاه"
-    const val surveyMenuHint = "۱۰ سؤال، حدود ۲ دقیقه"
-    const val surveyOffer = "چند روز است با دنگ کار می‌کنید. به ۱۰ سؤال کوتاه جواب می‌دهید؟ نظرتان به بهتر شدن برنامه کمک می‌کند."
-    const val surveyYes = "شرکت در نظرسنجی"
-    const val surveyNo = "نه، ممنون"
-    const val susTitle = "نظرسنجی دنگ (SUS)"
-    const val susIntro = "برای هر جمله بگویید چقدر موافقید. جواب درست یا غلط ندارد."
-    const val susScore = "امتیاز"
-    const val susAnswers = "پاسخ‌ها (۱ تا ۵)"
-    const val susComment = "اگر حرف دیگری دارید (اختیاری)"
-    const val susAnswerAll = "لطفاً به همه سؤال‌ها جواب دهید."
-    val susScale = listOf("کاملاً مخالفم", "مخالفم", "نظری ندارم", "موافقم", "کاملاً موافقم")
-    val susQuestions = listOf(
-        "فکر می‌کنم دوست دارم از این برنامه زیاد استفاده کنم.",
-        "برنامه را بی‌دلیل پیچیده دیدم.",
-        "فکر می‌کنم استفاده از برنامه آسان بود.",
-        "فکر می‌کنم برای استفاده از این برنامه به کمک یک فرد فنی نیاز دارم.",
-        "بخش‌های مختلف برنامه به‌خوبی با هم جور بودند.",
-        "فکر می‌کنم در برنامه ناهماهنگی زیادی وجود داشت.",
-        "فکر می‌کنم بیشتر مردم خیلی زود کار با این برنامه را یاد می‌گیرند.",
-        "کار با برنامه را خیلی دست‌وپاگیر دیدم.",
-        "هنگام استفاده از برنامه احساس اطمینان داشتم.",
-        "قبل از اینکه بتوانم با این برنامه کار کنم، باید چیزهای زیادی یاد می‌گرفتم.",
-    )
     const val expensesOptionalFixed = "اختیاری؛ شارژ ماهانه ثابت است و قبض‌ها از صندوق پرداخت می‌شوند"
     const val moreActions = "کارهای دیگر (اصلاح حساب، پس دادن پول)"
     const val fewerActions = "بستن کارهای دیگر"
-    const val simpleMode = "ساده"
-    const val advancedMode = "پیشرفته"
     const val displayTitle = "نمایش"
-    const val modeLabel = "حالت برنامه"
-    const val modeHint = "در حالت ساده فقط کارهای روزمره دیده می‌شود. حالت پیشرفته روش‌های تقسیم دلخواه، شارژهای ثابت، پارکینگ و سابقه تغییرات را هم نشان می‌دهد. اطلاعات شما در هیچ حالتی تغییر نمی‌کند."
     const val textSize = "اندازه متن"
     val textSizes = listOf("معمولی", "بزرگ", "خیلی بزرگ")
     const val shareSummary = "تصویر خلاصه ماه برای گروه"

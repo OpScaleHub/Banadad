@@ -86,13 +86,11 @@ fun FinanceScreen(vm: AppViewModel, nav: NavController) {
                 if (openingEditable) OutlinedButton(onClick = { action = Action.OPENING }, Modifier.fillMaxWidth()) { Text(S.opening) }
                 TextButton(onClick = { more = !more }) { Text(if (more) S.fewerActions else S.moreActions) }
                 if (more) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val advanced by vm.ui.advanced.collectAsState()
                     val cashAccounts by vm.cashAccounts.collectAsState()
                     OutlinedButton(onClick = { action = Action.ADJUST }) { Text(S.adjustment) }
                     OutlinedButton(onClick = { action = Action.REFUND }) { Text(S.refund) }
-                    // Simple mode has one bucket: moving money between funds or accounts is advanced.
-                    if (advanced) OutlinedButton(onClick = { action = Action.FUND_TRANSFER }) { Text(S.fundTransfer) }
-                    if (advanced || cashAccounts.size > 1) OutlinedButton(onClick = { action = Action.CASH_TRANSFER }) { Text(S.cashTransfer) }
+                    // One bucket: moving money is offered only to buildings that have a second account.
+                    if (cashAccounts.size > 1) OutlinedButton(onClick = { action = Action.CASH_TRANSFER }) { Text(S.cashTransfer) }
                 }
                 Hint(S.paymentNotIncome)
             }
@@ -208,9 +206,7 @@ private fun AdjustDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, c
         Text(S.adjustmentDirection, style = MaterialTheme.typography.labelMedium)
         SingleChoice(listOf(true, false), credit, { credit = it }) { if (it) S.creditUnit else S.debitUnit }
         NumberInput(S.amount, amount)
-        // One bucket in simple mode: corrections go to the building's running money.
-        val advanced by vm.ui.advanced.collectAsState()
-        if (advanced) Dropdown(S.fund, funds, fund, { fund = it }, { it.name })
+        // One bucket: corrections go to the building's running money.
         Dropdown(S.category, listOf<CategoryEntity?>(null) + categories, category, { category = it }, { it?.name ?: S.none })
         DateInput(S.date, date, vm.today)
         TextInput(S.reasonRequiredHint, reason, { reason = it })
@@ -260,7 +256,6 @@ private fun OpeningDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, 
     val cur = current ?: return
     val funds by vm.funds.collectAsState()
     val accounts by vm.cashAccounts.collectAsState()
-    val advanced by vm.ui.advanced.collectAsState()
     val cash = accounts.associate { it.id to rememberMoney(cur.cash[it.id] ?: 0) }
     val others = funds.filter { it.kind != FundKind.OPERATING }.associate { it.id to rememberMoney(cur.funds[it.id] ?: 0) }
     val unitFields = units.associate { it.id to rememberMoney(kotlin.math.abs(cur.units[it.id] ?: 0)) }
@@ -274,8 +269,8 @@ private fun OpeningDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, 
     }, canConfirm = valid) {
         Hint(S.openingHint)
         accounts.forEach { a -> NumberInput("${S.openingCash}: ${a.name}", cash.getValue(a.id)) }
-        // Reserve funds are an advanced idea; still shown when they already hold an opening amount.
-        funds.filter { it.kind != FundKind.OPERATING && (advanced || (cur.funds[it.id] ?: 0) != 0L) }
+        // Reserve funds are shown only when they already hold an opening amount.
+        funds.filter { it.kind != FundKind.OPERATING && (cur.funds[it.id] ?: 0) != 0L }
             .forEach { f -> NumberInput("${S.openingReserve}: ${f.name}", others.getValue(f.id)) }
         Text(S.openingUnits, style = MaterialTheme.typography.labelLarge)
         units.forEach { u -> OpeningUnitInput("${S.unit} ${u.label}", unitFields.getValue(u.id), owes[u.id] ?: true) { owes[u.id] = it } }

@@ -1,7 +1,7 @@
 # Message for testers (copy and send)
 
 Send this with the link. It asks for a few real tasks over about a week, and for feedback through
-the app's built-in «نظر» button. Collect what arrives in one place (for example a Telegram
+the app's «بیشتر ← نظر یا گزارش مشکل» (emails the support address; 0.6.0). Collect what arrives in one place (for example a Telegram
 chat), and go through it with the method in docs/10, step 4.
 
 ---
@@ -18,8 +18,7 @@ chat), and go through it with the method in docs/10, step 4.
 4. قبض یک واحد را با پیام‌رسان بفرستید.
 5. یک پرداخت (مثلاً کارت‌به‌کارت یک همسایه) را ثبت کنید.
 
-**هر جا گیر کردید یا نظری داشتید:** دکمه **«نظر»** بالای هر صفحه را بزنید. تصویر همان صفحه خودش ضمیمه می‌شود؛ دو سؤال کوتاه را جواب دهید و برای من بفرستید. اگر نوشتن سخت است، پیام صوتی هم عالی است. اگر بشود با «ضبط صفحه» گوشی فیلم بگیرید، از همه بهتر است.
+**هر جا گیر کردید یا نظری داشتید:** در «بیشتر» گزینه **«نظر یا گزارش مشکل»** را بزنید، دو سؤال کوتاه را جواب دهید و با ایمیل بفرستید (عکس صفحه را هم می‌شود ضمیمه کرد). اگر نوشتن سخت است، پیام صوتی هم عالی است. اگر بشود با «ضبط صفحه» گوشی فیلم بگیرید، از همه بهتر است.
 
-**آخر هفته:** در «بیشتر ← نظرسنجی کوتاه» به ۱۰ سؤال جواب دهید (حدود ۲ دقیقه).
 
 اطلاعات شما فقط روی گوشی خودتان می‌ماند. ممنون که کمک می‌کنید 🙏

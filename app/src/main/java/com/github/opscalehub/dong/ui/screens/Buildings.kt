@@ -103,7 +103,7 @@ data class UnitRow(val label: String, val floor: String, val area: String, val o
  * whether units have their own water meters) → how the building charges → cash on hand and, if
  * the building is not new to accounting, each unit's debt or prepayment from before.
  * Meters and parking spaces are generated from the units, never added one by one.
- * Technical settings (rounding, currency) keep their defaults and live in advanced settings.
+ * Technical settings (rounding, currency) keep their defaults (Iran: Jalali, Toman).
  * Creates everything atomically.
  */
 @Composable
