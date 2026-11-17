@@ -150,6 +150,7 @@ fun PaymentDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, cal: com
     var unit by remember { mutableStateOf(preset) }
     val amount = rememberMoney(null)
     var account by remember { mutableStateOf<CashAccountEntity?>(cash.firstOrNull()) }
+    LaunchedEffect(cash) { if (account == null) account = cash.firstOrNull() }
     val date = rememberDate(vm.today, cal)
     var method by remember { mutableStateOf(S.methods.first()) }
     var ref by rememberSaveable { mutableStateOf("") }
@@ -159,7 +160,8 @@ fun PaymentDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, cal: com
         Hint(S.paymentNotIncome)
         Dropdown(S.unit, units.filter { it.active }, unit, { unit = it }, { it.label })
         NumberInput(S.amount, amount)
-        Dropdown(S.cashAccount, cash, account, { account = it }, { it.name })
+        // One bucket: the account is asked only when the building has more than one.
+        if (cash.size > 1) Dropdown(S.cashAccount, cash, account, { account = it }, { it.name })
         DateInput(S.date, date, vm.today)
         Text(S.method, style = MaterialTheme.typography.labelMedium)
         SingleChoice(S.methods, method, { method = it }) { it }
@@ -173,6 +175,7 @@ private fun RefundDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, c
     var unit by remember { mutableStateOf<UnitEntity?>(null) }
     val amount = rememberMoney(null)
     var account by remember { mutableStateOf<CashAccountEntity?>(cash.firstOrNull()) }
+    LaunchedEffect(cash) { if (account == null) account = cash.firstOrNull() }
     val date = rememberDate(vm.today, cal)
     var reason by rememberSaveable { mutableStateOf("") }
     FormDialog(S.refund, close, {
@@ -180,7 +183,8 @@ private fun RefundDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, c
     }, canConfirm = unit != null && (amount.value ?: 0) > 0 && account != null && date.value != null && reason.isNotBlank()) {
         Dropdown(S.unit, units, unit, { unit = it }, { it.label })
         NumberInput(S.amount, amount)
-        Dropdown(S.cashAccount, cash, account, { account = it }, { it.name })
+        // One bucket: the account is asked only when the building has more than one.
+        if (cash.size > 1) Dropdown(S.cashAccount, cash, account, { account = it }, { it.name })
         DateInput(S.date, date, vm.today)
         TextInput(S.reasonRequiredHint, reason, { reason = it })
     }
