@@ -71,11 +71,11 @@ fun SendBillsScreen(vm: AppViewModel, periodId: String) {
     val d = report
 
     ScreenList {
-        if (p.status != PeriodStatus.FINALIZED) {
+        if (d == null) return@ScreenList
+        if (!com.github.opscalehub.dong.data.isBilled(d, p)) {
             item { EmptyState(S.stepSend, S.afterClosing) }
             return@ScreenList
         }
-        if (d == null) return@ScreenList
         val billed = billedUnits(d, p.id)
         val (sent, total) = sendProgress(billed, shares, p.id)
         item {

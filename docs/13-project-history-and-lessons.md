@@ -33,6 +33,8 @@ links to them.
 | 2026-10-21 | 0.4.2 | Generate, don't add one by one: water meters and parking created from the wizard, a «قبض‌های مشترک» step, meters no longer block months nobody splits by meter, simpler menu and screens. |
 | 2026-10-21 | 0.4.3 | Reorder units (▲▼ in the wizard and the Units tab); the water-meter split offered only on the water type. |
 | 2026-10-21 | 0.4.4 | The in-app demo is named «نمونه» (easy to find and delete) and holds a year of data: 11 closed months plus the current one, seasonal water, a price rise, one-off repairs, a reserve-funded emergency, and different payment habits (on time, partial, late, ahead, a bounced cheque). |
+| 2026-11-13 | 0.4.6 | Opening balances («مانده‌های اول کار»): past unit debt or prepayment at setup, editable until the first close. |
+| 2026-11-17 | 0.5.0 | Testers' reports: (1) cancelling a bill took several steps, (2) Iranian buildings prepay the monthly charge by the 10th but Dang charged it at closing, (3) "two buckets" confused managers and a water bill paid from the pot was charged to units again by meter. Now: one-step cancel (payments reversed, closed months credited by a revision), prepaid monthly charge posted on day 1 (due the 10th, months start themselves), and in fixed-charge buildings every bill is covered by the charge unless marked «جدا از واحدها گرفته شود». Simple mode shows one «صندوق ساختمان». DB v5 (`charge_items.inAdvance`). |
 
 ## 3. Key decisions and the reasons behind them
 
@@ -55,6 +57,25 @@ links to them.
   and a new one posted the day before the first month. After the first close the past is fixed;
   a unit's balance is corrected with «اصلاح حساب واحد», dated today with a reason. Rewriting
   closed months would break the trust the journal exists for.
+- **The fixed monthly charge is prepaid** (owner's report, 0.5.0). Iranian buildings collect it
+  at the start of the month, due by the 10th. Charge items flagged `inAdvance` (the wizard's
+  «شارژ ماهانه»; migration v5 flags existing ones) are posted as a CHARGE entry on the month's
+  first day; closing posts only the rest (bills charged separately, tariff water, changes during
+  the month) per unit/category/fund. The advance entry is re-posted (old one reversed on its own
+  date) when rates, residents or units change while the month is open. With a fixed charge the
+  current month is created on its own, including months missed while the app was closed. Split-
+  bills buildings and the workbook demo keep charging at closing.
+- **In a fixed-charge building a bill is covered by the charge by default** (0.5.0). The bill form
+  asks «از شارژ ماهانه پرداخت می‌شود» / «جدا از واحدها گرفته شود» first; only the second shows the
+  split methods. Testers recorded a metered water bill as "paid from the pot" and it was also
+  split by meter, because "paid now" (cash) and "who bears it" (policy) were separate questions
+  both using the word «صندوق».
+- **Cancelling cascades** (0.5.0): «ابطال هزینه» reverses the bill's supplier payments and the
+  bill in one transaction; in a closed month it also posts a revision (dated today) that credits
+  each unit the share it was charged. Corrections now start from the latest revision's input, so
+  a cancelled bill never comes back.
+- **One bucket in simple mode** (0.5.0): funds stay in the engine (reserve, demo, advanced), but
+  simple mode hides the fund pickers, fund transfers and the reserve tile unless it holds money.
 - **Payments are balance-forward** (not matched to single charges); ageing uses oldest-first
   settlement. Simpler for managers; listed as a limitation in docs/06.
 

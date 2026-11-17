@@ -163,7 +163,7 @@ fun ReportsScreen(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") nav: NavContro
         }
         item {
             val m = Insights.monthly(d)
-            if (m.size < 2) return@item
+            if (m.size < 2 || m.all { it.reserve == 0L }) return@item
             SectionCard(S.reserveTrend, subtitle = "${m.last().name}: ${mf.withUnit(m.last().reserve)}") {
                 Sparkline(m.map { it.reserve }, description = S.reserveTrend)
             }
