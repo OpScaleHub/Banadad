@@ -167,8 +167,10 @@ private fun BuildingSettingsCard(vm: AppViewModel) {
     SectionCard(S.buildingSettings, subtitle = S.settingsNote) {
         TextInput(S.buildingName, name, { name = it })
         TextInput(S.address, address, { address = it })
-        // Calendar, currency, rounding and how residents are counted keep the values set at setup:
-        // an Iranian building never needs to change them.
+        // Toman or Rial on screen (amounts are stored in Rial either way). Calendar, rounding and how
+        // residents are counted keep the values set at setup: an Iranian building never changes them.
+        Text(S.displayCurrency, style = MaterialTheme.typography.labelMedium)
+        SingleChoice(listOf(true, false), toman, { toman = it }) { if (it) S.showToman else S.showRial }
         Button(onClick = {
             vm.run(S.saved) {
                 vm.repos.buildings.updateSettings(building.copy(name = name.trim(), address = address.trim(), currencyCode = currencyCode.trim(),

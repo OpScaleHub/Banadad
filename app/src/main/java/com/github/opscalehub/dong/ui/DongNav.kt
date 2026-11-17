@@ -4,10 +4,11 @@ import androidx.compose.ui.unit.dp
 
 import androidx.core.view.drawToBitmap
 
-import androidx.compose.ui.platform.LocalView
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -124,7 +125,8 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
         if (buildings.isEmpty() || current == null) {
             // First run: welcome + setup wizard. The root switches to the app once a building exists.
             Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
-                Column(Modifier.padding(pad).fillMaxSize()) { WelcomeScreen(vm) }
+                // Edge-to-edge: make room for the keyboard so it never covers the field being filled.
+                Column(Modifier.padding(pad).consumeWindowInsets(pad).imePadding().fillMaxSize()) { WelcomeScreen(vm) }
             }
             return@CompositionLocalProvider
         }
@@ -133,7 +135,6 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
         val route = entry?.destination?.route ?: Routes.HOME
         val isTab = tabs.any { it.route == route }
         var switcher by remember { mutableStateOf(false) }
-        val view = LocalView.current
         Scaffold(
             topBar = {
                 Column {
@@ -175,7 +176,9 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
             },
             snackbarHost = { SnackbarHost(snackbar) },
         ) { pad ->
-            Column(Modifier.padding(pad).fillMaxSize()) {
+            // The keyboard shrinks the content instead of covering it; lists then scroll the focused
+            // field into view (testers had to close the keyboard to see what they were filling).
+            Column(Modifier.padding(pad).consumeWindowInsets(pad).imePadding().fillMaxSize()) {
                 if (isTab) Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) { UpdateCard(vm.updater) }
                 DongNavHost(nav, vm)
             }

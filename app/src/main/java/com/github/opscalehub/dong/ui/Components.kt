@@ -32,6 +32,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -68,6 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -145,7 +149,7 @@ fun TextInput(label: String, value: String, onChange: (String) -> Unit, modifier
         value = value, onValueChange = onChange, label = { Text(label) }, modifier = modifier.fillMaxWidth(),
         singleLine = singleLine, isError = error != null,
         supportingText = (error ?: supporting)?.let { { Text(it) } },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboard, imeAction = if (singleLine) ImeAction.Next else ImeAction.Default),
     )
 }
 
@@ -226,7 +230,7 @@ fun NumberInput(label: String, state: NumberFieldState, modifier: Modifier = Mod
         value = state.text, onValueChange = { state.text = it }, label = { Text(label) }, modifier = modifier.fillMaxWidth(),
         singleLine = true, isError = err != null,
         supportingText = (err ?: supporting)?.let { { Text(it) } },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
         visualTransformation = if (state.grouped) GroupingTransformation else PersianDigitsTransformation,
         suffix = state.unit?.let { { Text(it, style = MaterialTheme.typography.bodySmall) } },
         trailingIcon = if (state.grouped) ({
@@ -255,7 +259,7 @@ fun DateInput(label: String, state: DateFieldState, today: Long, modifier: Modif
         value = state.text, onValueChange = { state.text = it }, label = { Text(label) }, singleLine = true,
         isError = bad || (!allowEmpty && state.text.isBlank()), modifier = modifier.fillMaxWidth(),
         supportingText = if (bad) ({ Text(S.invalidDate) }) else state.value?.let { v -> { Text(Fmt.longDate(v, state.calendar)) } },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
         trailingIcon = {
             IconButton(onClick = { picking = true }) { Icon(Icons.Filled.DateRange, S.calendarPick) }
         },
@@ -435,17 +439,39 @@ fun <T> SingleChoice(options: List<T>, selected: T, onSelect: (T) -> Unit, text:
     }
 }
 
-/** Full-height dialog for forms; [onConfirm] enabled only when [canConfirm]. */
+/**
+ * Dialog for forms; [onConfirm] enabled only when [canConfirm]. It sits above the keyboard: the
+ * fields scroll and the buttons stay visible (a plain AlertDialog let the keyboard cover «ذخیره»).
+ */
 @Composable
 fun FormDialog(title: String, onDismiss: () -> Unit, onConfirm: () -> Unit, canConfirm: Boolean = true, confirmText: String = S.save,
                content: @Composable ColumnScope.() -> Unit) {
-    AlertDialog(
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp), content = content) },
-        confirmButton = { TextButton(onClick = onConfirm, enabled = canConfirm) { Text(confirmText) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(S.cancel) } },
-    )
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Box(
+            Modifier.fillMaxSize().systemBarsPadding().imePadding().padding(horizontal = 24.dp, vertical = 16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.material3.Surface(
+                Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 6.dp,
+            ) {
+                Column(Modifier.padding(top = 24.dp, start = 24.dp, end = 24.dp, bottom = 12.dp)) {
+                    Text(title, style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(12.dp))
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = onDismiss) { Text(S.cancel) }
+                        TextButton(onClick = onConfirm, enabled = canConfirm) { Text(confirmText) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

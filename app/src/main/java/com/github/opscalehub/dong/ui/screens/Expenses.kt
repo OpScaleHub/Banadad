@@ -495,13 +495,14 @@ private fun PaySupplierDialog(vm: AppViewModel, existing: ExpenseEntity?, open: 
     if (!open || existing == null) return
     val amt = rememberMoney(existing.amountMinor - paid)
     var from by remember { mutableStateOf(cash.firstOrNull()) }
+    androidx.compose.runtime.LaunchedEffect(cash) { if (from == null) from = cash.firstOrNull() }
     val d = rememberDate(vm.today, building.calendar)
     var ref by rememberSaveable { mutableStateOf("") }
     FormDialog(S.paySupplier, close, {
         vm.run(S.saved, onSuccess = close) { vm.repos.expenses.paySupplier(existing.id, amt.value!!, from!!.id, d.value!!, ref) }
     }, canConfirm = (amt.value ?: 0) > 0 && from != null && d.value != null) {
         NumberInput(S.amount, amt)
-        Dropdown(S.payFrom, cash, from, { from = it }, { it.name })
+        if (cash.size > 1) Dropdown(S.payFrom, cash, from, { from = it }, { it.name })
         DateInput(S.date, d, vm.today)
         TextInput(S.reference, ref, { ref = it })
     }
