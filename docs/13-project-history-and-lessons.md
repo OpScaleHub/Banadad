@@ -38,6 +38,7 @@ links to them.
 | 2026-11-17 | 0.6.0 | One app, fewer knobs: the simple/advanced switch is gone (simple is the app). Removed from the UI: calendar, currency, rounding and occupancy-basis settings, water tariffs, the split-formula editor, fund/cash-account management and fund transfers, audit log, meter serial/rollover, creating charge items by hand. Feedback: no more «نظر» on every screen and no SUS survey; «نظر یا گزارش مشکل» in «بیشتر» emails the support address on the Bazaar listing (share sheet if no email app), and the Bazaar edition adds «امتیاز و نظر در بازار». Engine and data unchanged; old buildings keep their settings. |
 | 2026-11-17 | 0.6.1 | Owner's report: the keyboard covered the form being filled. The app is edge-to-edge, so `adjustResize` alone does nothing: screens now use `imePadding()` and form dialogs are keyboard-aware (fields scroll, «ذخیره» stays visible); the keyboard's key moves to the next field. Toman/Rial display is back in settings. The cash-account picker is hidden when there is only one. |
 | 2026-11-18 | 0.7.0 | Owner's review of the whole app: backup reminder (home card when there is no backup or the last is 30+ days old, «بعداً» waits a week; a backup offer right after closing a month; last backup date in Settings, per phone), where to pay on bills and reminders (card number or IBAN and holder in Settings, grouped left-to-right; DB v6 `buildings.payAccount/payHolder`), the month's due date on bills, a payment receipt image (offered right after saving a payment, and from each payment in a unit's history), "due date passed, N units owe" card on Home with a reminder button per debtor, undo right after saving a payment or expense, «این صفحه چیست؟» help on the main screens. The name is shown as «دُنگ» everywhere users see it (docs/08). Landing page screenshots and social card retaken.
+| 2026-11-18 | 0.8.0 | Testers' first reports: a cancelled advance charge (month deleted and made again, people or rate changed) broke every unit statement and units showed «تسویه»; fixed, with `WorkflowInvariantsTest`. «اصلاح حساب واحد» on the unit screen after the first close, with no default direction. The app now checks its own books (`SelfCheck`: same invariants as the test) on Home and in «نظر یا گزارش مشکل»; a failure shows a card asking for a report. Reports carry the self-check result, counts and recent error codes (no names or amounts) and, only if the manager turns it on, the building's backup file. |
 
 ## 3. Key decisions and the reasons behind them
 
@@ -166,6 +167,12 @@ links to them.
   now walks a manager's first weeks and checks the books after every step; add new flows to it.
 - **Never show a default where a value failed to load.** A missing balance must not read
   «تسویه»; show nothing until the number is known.
+- **Let the phone say when the books are wrong.** `SelfCheck` runs the same invariants as
+  `WorkflowInvariantsTest` on the device (Home and the feedback screen) and reports codes like
+  `unit3:statement:IllegalStateException@Finance.kt:380`; on the 0.7.0 code it flags the testers'
+  bug at once. Keep it free of names, labels and amounts so a report can include it as is. Bug
+  reports come by email from the app, with the building's backup attached when the manager
+  agrees, so a problem can be replayed exactly instead of explained over the phone.
 - **Deterministic seed data**: the year demo uses `Random(1405)` so it is the same on every phone
   and in tests; a test loads it on awkward dates (Nowruz, 30 Esfand of a leap year, month ends).
 
@@ -179,7 +186,7 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (161 tests after 0.7.0; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (163 tests after 0.8.0; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then

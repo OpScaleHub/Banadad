@@ -71,9 +71,26 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
     val preview by derived(vm, current?.id, current?.status) { current?.let { vm.repos.periods.preview(it.id) } }
     val report by derived(vm, building.id) { vm.reports.load(building.id) }
     var paying by remember { mutableStateOf(false) }
+    // The books' invariants, re-checked when months or entries change; a failure is a bug to report.
+    val entries by vm.entries.collectAsState()
+    val health by androidx.compose.runtime.produceState<com.github.opscalehub.dong.data.Health?>(null, building.id, periods.size, entries.size) {
+        value = try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.github.opscalehub.dong.data.SelfCheck.run(vm.repos, building.id) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     WithFab(S.payNow, { paying = true }) {
         ScreenList {
+            if (health?.ok == false) item {
+                SectionCard(S.healthTitle) {
+                    Text(S.healthBody, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                    Button(onClick = { nav.navigate(Routes.FEEDBACK) }, Modifier.fillMaxWidth()) { Text(S.healthSend) }
+                }
+            }
             // ---- month header ------------------------------------------------
             item {
                 if (current == null) {

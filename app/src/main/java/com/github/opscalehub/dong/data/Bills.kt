@@ -38,9 +38,12 @@ class BillRepository(private val r: Repos) {
 
     suspend fun unmarkSent(periodId: String, unitId: String) = dao.deleteShares(periodId, unitId)
 
-    /** The bill of [unitId] for [periodId] (charges of that month), or a balance-only bill when null. */
-    suspend fun bill(buildingId: String, unitId: String, periodId: String?): Bill {
-        val d = reports.load(buildingId)
+    /**
+     * The bill of [unitId] for [periodId] (charges of that month), or a balance-only bill when null.
+     * [data] is the building's report when the caller already has it (one load for many bills).
+     */
+    suspend fun bill(buildingId: String, unitId: String, periodId: String?, data: ReportData? = null): Bill {
+        val d = data ?: reports.load(buildingId)
         val b = r.db.buildingDao().building(buildingId) ?: fail(OpError.NOT_FOUND)
         val unit = d.units.firstOrNull { it.id == unitId } ?: fail(OpError.NOT_FOUND)
         val p = periodId?.let { id -> d.periods.firstOrNull { it.id == id } ?: fail(OpError.NOT_FOUND) }
