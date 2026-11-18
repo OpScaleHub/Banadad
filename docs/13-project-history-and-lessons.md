@@ -160,6 +160,12 @@ links to them.
   the next month.
 - **Meter checks must only block what uses meters.** Before 0.4.2, adding a main meter by hand
   blocked every month even when no expense was split by reading.
+- **A reversal belongs where the entry it undoes belongs.** Before this fix a unit statement put a
+  cancelled advance charge (month deleted, people or rate changed) in no bucket, failed its own
+  check, and the screen showed every unit as settled with no history. `WorkflowInvariantsTest`
+  now walks a manager's first weeks and checks the books after every step; add new flows to it.
+- **Never show a default where a value failed to load.** A missing balance must not read
+  «تسویه»; show nothing until the number is known.
 - **Deterministic seed data**: the year demo uses `Random(1405)` so it is the same on every phone
   and in tests; a test loads it on awkward dates (Nowruz, 30 Esfand of a leap year, month ends).
 
@@ -173,7 +179,7 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (160 tests at 0.7.0; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (161 tests after 0.7.0; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then

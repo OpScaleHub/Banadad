@@ -361,21 +361,24 @@ class FinanceRepository(private val r: Repos) {
         val lines = fin.lines(buildingId).filter { it.account == AccountKind.RECEIVABLE && it.unitId == unitId }
             .map { it to entries.getValue(it.entryId) }
             .sortedWith(compareBy({ it.second.entryDate }, { it.second.createdAt }))
+        // A reversal counts where the entry it undoes counts: a cancelled advance charge (month deleted,
+        // occupancy changed) lowers charges, a replaced opening lowers the opening. Anything else is a correction.
+        fun kind(e: JournalEntryEntity) = if (e.type == EntryType.REVERSAL) entries[e.reversesEntryId]?.type ?: EntryType.ADJUSTMENT else e.type
         val before = lines.filter { from != null && it.second.entryDate < from }
         val inRange = lines.filter { (from == null || it.second.entryDate >= from) && (to == null || it.second.entryDate <= to) }
-        val opening = before.sumOf { it.first.amountMinor } + inRange.filter { it.second.type == EntryType.OPENING }.sumOf { it.first.amountMinor }
+        val opening = before.sumOf { it.first.amountMinor } + inRange.filter { kind(it.second) == EntryType.OPENING }.sumOf { it.first.amountMinor }
         var bal = before.sumOf { it.first.amountMinor }
         val rows = inRange.map { (l, e) ->
             bal += l.amountMinor
             StatementRow(e.id, e.entryDate, e.type, e.memo, l.categoryId, l.amountMinor, bal)
         }
-        fun sum(pred: (Pair<com.github.opscalehub.dong.data.db.JournalLineEntity, JournalEntryEntity>) -> Boolean) = inRange.filter(pred).sumOf { it.first.amountMinor }
+        fun sum(pred: (EntryType) -> Boolean) = inRange.filter { pred(kind(it.second)) }.sumOf { it.first.amountMinor }
         val chargeTypes = setOf(EntryType.CHARGE, EntryType.PERIOD_CORRECTION)
-        val water = sum { it.second.type in chargeTypes && it.first.categoryId in waterCats }
-        val charges = sum { it.second.type in chargeTypes }
-        val payments = -sum { it.second.type == EntryType.RESIDENT_PAYMENT || (it.second.type == EntryType.REVERSAL && entries[it.second.reversesEntryId]?.type == EntryType.RESIDENT_PAYMENT) }
-        val refunds = sum { it.second.type == EntryType.REFUND || (it.second.type == EntryType.REVERSAL && entries[it.second.reversesEntryId]?.type == EntryType.REFUND) }
-        val adjustments = -sum { it.second.type == EntryType.ADJUSTMENT || (it.second.type == EntryType.REVERSAL && entries[it.second.reversesEntryId]?.type in setOf(EntryType.ADJUSTMENT, EntryType.OPENING)) }
+        val water = inRange.filter { kind(it.second) in chargeTypes && it.first.categoryId in waterCats }.sumOf { it.first.amountMinor }
+        val charges = sum { it in chargeTypes }
+        val payments = -sum { it == EntryType.RESIDENT_PAYMENT }
+        val refunds = sum { it == EntryType.REFUND }
+        val adjustments = -sum { it !in chargeTypes && it !in setOf(EntryType.OPENING, EntryType.RESIDENT_PAYMENT, EntryType.REFUND) }
         val closing = bal
         check(opening + charges - payments - adjustments + refunds == closing) { "statement does not reconcile" }
         return UnitStatement(unitId, opening, charges, water, charges - water, payments, adjustments, refunds, closing, rows)
