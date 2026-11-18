@@ -202,7 +202,7 @@ object Fa {
             "SET_OCCUPANCY" to "تغییر تعداد ساکنان", "DELETE_OCCUPANCY" to "حذف سابقه سکونت", "SAVE_PARKING_SPACE" to "ثبت جای پارک", "END_PARKING" to "واگذاری جای پارک", "REORDER_UNITS" to "تغییر ترتیب واحدها",
             "ASSIGN_PARKING" to "تخصیص پارکینگ", "SAVE_METER" to "ثبت کنتور", "ADD_READING" to "ثبت قرائت", "CORRECT_READING" to "اصلاح قرائت",
             "DELETE_READING" to "حذف قرائت", "REPLACE_METER" to "تعویض کنتور", "SAVE_TARIFF" to "ثبت تعرفه", "SAVE_CATEGORY" to "ثبت دسته هزینه",
-            "UPDATE_EXPENSE" to "ویرایش هزینه", "VOID_EXPENSE" to "ابطال هزینه", "SAVE_CHARGE_ITEM" to "ثبت شارژ ثابت", "CREATE_PERIOD" to "ساختن ماه",
+            "UPDATE_EXPENSE" to "ویرایش هزینه", "VOID_EXPENSE" to "ابطال هزینه", "SAVE_CHARGE_ITEM" to "ثبت شارژ ثابت", "CREATE_PERIOD" to "ساختن ماه", "UPDATE_PERIOD" to "ویرایش ماه",
             "DELETE_PERIOD" to "حذف ماه", "FINALIZE_PERIOD" to "بستن ماه", "CORRECT_PERIOD" to "اصلاحیه ماه", "ADD_FUND" to "ایجاد صندوق",
             "ADD_CASH_ACCOUNT" to "ایجاد حساب نقد", "DEMO_DATA" to "بارگذاری داده نمایشی",
         )[code] ?: code

@@ -83,12 +83,22 @@ class WorkflowInvariantsTest {
         val cat = db.expenseDao().categories(b).first { it.active }
         val e = ExpenseEntity(newId(), b, db.periodDao().periods(b).single().id, cat.id, cat.defaultFundId!!, null, m.start + 7, "هزینه", 3_000_000,
             policyJson = AllocationPolicy.decode(cat.defaultPolicyJson).encode(), createdAt = 0)
-        r.expenses.create(e, cash)
-        check(b, "expense")
+        r.expenses.create(e, null)
+        check(b, "expense, unpaid")
+        r.expenses.paySupplier(e.id, 1_000_000, cash, m.start + 8)
+        check(b, "supplier paid in part")
         r.expenses.void(e.id, "اشتباه")
         check(b, "expense cancelled")
 
         // Close the month, move to the next one (made and charged by itself), correct after closing.
+        // Edit the open month instead of deleting it: the advance charge moves with the start date.
+        val open = db.periodDao().periods(b).single()
+        r.periods.updateDraft(open.copy(name = "ماه ویرایش‌شده", startDate = open.startDate + 1, dueDate = open.startDate + 14))
+        check(b, "month dates edited")
+        r.periods.updateDraft(db.periodDao().periods(b).single().copy(startDate = open.startDate))
+        check(b, "month dates restored")
+        assertEquals("ماه ویرایش‌شده", db.periodDao().periods(b).single().name)
+        assertEquals(open.startDate + 14, db.periodDao().periods(b).single().dueDate)
         r.periods.finalize(db.periodDao().periods(b).single().id)
         check(b, "month closed")
         clock.day = m.end + 1
