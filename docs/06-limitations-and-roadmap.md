@@ -42,6 +42,7 @@ target, late fees.
 | Priority | Item | Notes |
 |---|---|---|
 | P0 | **Testers' feedback round on 0.4.x** (next step, 2026-10-21) | Testers use «نظر» and the survey (docs/12); synthesize per docs/10 step 4 before building more. Open UX suggestions: "what is this page?" help, undo snackbar after saving (docs/09). Handover: docs/13. First report (2026-11-13): a building that starts mid-way had units already in debt and no way to enter them → past unit balances in the wizard and editable until the first close (docs/13 §3) |
+| P1 | **Show the pronunciation of the name: «دُنگ»** (owner, 2026-11-18; next release) | Add the zamma to the user-visible name: launcher label, in-app name, Bazaar title, landing page. No repository or id changes. Details: docs/08 |
 | P1 | Share bills to all debtors in one go | Partly done in 0.3.1: «ارسال قبض واحدها» lists every unit with sent status; each bill still opens its own share sheet |
 | P1 | F-Droid / Play listing | Signed releases and in-app updates exist since 0.2.0/0.3.0 |
 | P2 | Receipt photos (content URI + migration v5) | Backup must then include files (zip) |
