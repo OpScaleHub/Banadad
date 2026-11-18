@@ -58,6 +58,9 @@ class SampleDataTest {
                 assertTrue("some units owe", bal.units.values.count { it > 0 } >= 2)
                 assertTrue("some unit is ahead", bal.units.values.any { it < 0 })
                 assertTrue("a payment was reversed", db.financeDao().entries(b).any { it.type == com.github.opscalehub.dong.domain.ledger.EntryType.REVERSAL })
+                // Like most real buildings: a fixed monthly charge, due by the 10th of the month itself.
+                assertTrue(r.periods.prepaid(b))
+                periods.forEach { assertEquals("${it.name} due", it.startDate + PREPAID_DUE_DAYS - 1, it.dueDate) }
             } finally {
                 db.close()
             }

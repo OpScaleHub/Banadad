@@ -85,6 +85,11 @@ object SampleData {
         val cur = month(r.clock.today(), 0)
         val past = (history downTo 1).map { month(r.clock.today(), -1 - it) }
         val since = past.firstOrNull()?.start ?: (prev.start - 30)
+        // The in-app demo runs like most real buildings: a fixed monthly charge, billed on the 1st and
+        // due by the 10th of the same month. The brief's reference scenario ([history] = 0) keeps the
+        // workbook's numbers: everything split after the month and due 10 days after it.
+        val prepaid = history > 0
+        fun due(m: Month): Long? = if (prepaid) null else m.end + 10
 
         // Parking (synthetic): ownership vs. use differ on purpose.
         val spaces = (1..8).associateWith { n -> r.buildings.saveSpace(ParkingSpaceEntity(newId(), b, "P$n", NOTE)) }
@@ -133,7 +138,7 @@ object SampleData {
 
         val sup = r.expenses.saveSupplier(SupplierEntity(newId(), b, "تامین‌کننده نمونه", notes = NOTE))
         r.expenses.saveChargeItem(ChargeItemEntity(newId(), b, "حق اندوخته ماهانه", cats.getValue("حق اندوخته").id, res, ChargeMode.TOTAL, 9_000_000,
-            AllocationPolicy.single(Basis.Equal).encode(), activeFrom = since))
+            AllocationPolicy.single(Basis.Equal).encode(), activeFrom = since, inAdvance = prepaid))
         val openUnits = mapOf(u("1-2") to 1_200_000L, u("3-1") to -500_000L)
         if (past.isNotEmpty()) {
             r.finance.postOpening(b, since - 1, mapOf(cash to 60_000_000), openUnits, emptyMap(), mapOf(res to 40_000_000L))
@@ -141,7 +146,7 @@ object SampleData {
         }
 
         // Previous month: full scenario, finalized.
-        val p1 = r.periods.create(b, prev.name + " (نمونه)", prev.start, prev.end, prev.end + 10)
+        val p1 = r.periods.create(b, prev.name + " (نمونه)", prev.start, prev.end, due(prev))
         fun exp(cat: String, amount: Long, desc: String, policy: AllocationPolicy? = null, fund: String = op, day: Long = prev.end) =
             ExpenseEntity(newId(), b, p1, cats.getValue(cat).id, fund, sup, day, "$desc (نمونه)", amount,
                 policyJson = (policy ?: AllocationPolicy.decode(cats.getValue(cat).defaultPolicyJson)).encode(), createdAt = 0)
@@ -160,14 +165,14 @@ object SampleData {
         r.periods.finalize(p1)
         listOf("1-1" to 3_000_000L, "1-2" to 2_000_000L, "2-1" to 9_000_000L, "2-2" to 4_500_000L, "3-1" to 10_000_000L,
             "3-2" to 4_000_000L, "4-1" to 5_000_000L, "4-2" to 4_600_000L).forEachIndexed { i, (label, amt) ->
-            r.finance.receivePayment(b, u(label), amt, cash, minOf(prev.end + 1 + i, r.clock.today()), "نمونه-${i + 1}", "دریافت نمونه", "کارت به کارت")
+            r.finance.receivePayment(b, u(label), amt, cash, minOf(if (prepaid) cur.start + 1 + i else prev.end + 1 + i, r.clock.today()), "نمونه-${i + 1}", "دریافت نمونه", "کارت به کارت")
         }
         r.finance.adjust(b, u("1-2"), -300_000, op, cats.getValue("نظافت").id, prev.end + 1, "اصلاح نمونه: کسر هزینه نظافت")
         r.finance.refund(b, u("3-1"), 500_000, cash, prev.end + 1, "استرداد بستانکاری (نمونه)")
         r.finance.transferFunds(b, op, res, 5_000_000, prev.end + 1, "انتقال نمونه به اندوخته")
 
         // Current month: a draft with one expense and no closing readings yet (shows missing readings).
-        val p2 = r.periods.create(b, cur.name + " (نمونه)", cur.start, cur.end, cur.end + 10)
+        val p2 = r.periods.create(b, cur.name + " (نمونه)", cur.start, cur.end, due(cur))
         r.expenses.create(ExpenseEntity(newId(), b, p2, cats.getValue("نظافت").id, op, sup, cur.start, "نظافت راه‌پله (نمونه)", 9_000_000,
             policyJson = cats.getValue("نظافت").defaultPolicyJson, createdAt = 0))
         r.journal.audit(b, "DEMO_DATA", "building", b, NOTE)
@@ -186,7 +191,7 @@ object SampleData {
      */
     private suspend fun addHistoryMonth(r: Repos, b: String, i: Int, last: Int, m: Month, waterLiters: Long, sup: String, op: String, res: String, cash: String, u: (String) -> String) {
         val cats = r.db.expenseDao().categories(b).associateBy { it.name }
-        val p = r.periods.create(b, m.name + " (نمونه)", m.start, m.end, m.end + 10)
+        val p = r.periods.create(b, m.name + " (نمونه)", m.start, m.end, m.start + PREPAID_DUE_DAYS - 1)
         suspend fun exp(cat: String, amount: Long, desc: String, day: Long = m.end, fund: String = op, paid: Boolean = true) =
             ExpenseEntity(newId(), b, p, cats.getValue(cat).id, fund, sup, day, "$desc (نمونه)", amount,
                 policyJson = cats.getValue(cat).defaultPolicyJson, createdAt = 0).also { r.expenses.create(it, if (paid) cash else null) }
