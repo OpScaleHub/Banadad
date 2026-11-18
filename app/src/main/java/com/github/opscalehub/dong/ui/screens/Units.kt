@@ -86,6 +86,10 @@ private fun parkingText(n: Int) = if (n > 0) "، ${Fmt.number(n.toLong())} ${S.p
 
 private enum class UnitFilter { ALL, OWES, SETTLED }
 
+/** The reminder message for a unit: what it owes, the month's deadline if not yet passed, and where to pay. */
+fun reminderFor(b: com.github.opscalehub.dong.data.db.BuildingEntity, unit: String, owed: String, period: com.github.opscalehub.dong.data.db.PeriodEntity?): String =
+    com.github.opscalehub.dong.share.PayTo.reminder(unit, b.name, owed, period?.dueDate?.let { Fmt.date(it, b.calendar) }, b.payAccount, b.payHolder)
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) {
@@ -103,6 +107,8 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
     val current = currentOccupants(occ, vm.today)
     val balances = report?.balances?.units.orEmpty()
     val viz = LocalViz.current
+    val context = LocalContext.current
+    val mf = LocalMoney.current
 
     WithFab(if (collect) S.payNow else S.newUnit, { if (collect) payingAny = true else adding = true }) {
         ScreenList {
@@ -196,7 +202,14 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
                         }
                         BalanceText(balances[u.id] ?: 0)
                     }
-                    if (collect) Button(onClick = { paying = u }, Modifier.fillMaxWidth()) { Text(S.payNow) }
+                    if (collect) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { paying = u }, Modifier.weight(1f)) { Text(S.payNow) }
+                        val owed = balances[u.id] ?: 0
+                        if (owed > 0) OutlinedButton(onClick = {
+                            val p = report?.let { com.github.opscalehub.dong.data.lastBilled(it) }
+                            BillShare.shareText(context, reminderFor(building, u.label, mf.withUnit(owed), p))
+                        }, Modifier.weight(1f)) { Text(S.shareReminder) }
+                    }
                 }
             }
         }
@@ -276,7 +289,7 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
     val viz = LocalViz.current
     val balance = statement?.closing ?: 0
 
-    fun reminder() = S.reminderText.format(unit.label, building.name, mf.withUnit(balance.coerceAtLeast(0)))
+    fun reminder() = reminderFor(building, unit.label, mf.withUnit(balance.coerceAtLeast(0)), lastClosed)
 
     ScreenList {
         item {
@@ -348,6 +361,8 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
                     Text(Fa.entryType(r.type) + (r.categoryId?.let { id -> report?.categoryName(id) }?.let { " — $it" } ?: ""), style = MaterialTheme.typography.bodyMedium)
                     Hint(Fmt.date(r.date, building.calendar) + if (r.memo.isNotBlank()) "، ${r.memo}" else "")
                 }
+                if (r.type == com.github.opscalehub.dong.domain.ledger.EntryType.RESIDENT_PAYMENT && report?.reversedEntryIds?.contains(r.entryId) == false)
+                    TextButton(onClick = { vm.run { com.github.opscalehub.dong.share.ReceiptShare.share(context, vm.repos.bills.receipt(r.entryId), mf) } }) { Text(S.receiptShort) }
                 Text(Fmt.signed(r.amount > 0, mf.format(kotlin.math.abs(r.amount))),
                     color = if (r.amount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
             }

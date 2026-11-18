@@ -43,6 +43,10 @@ data class BuildingEntity(
     @ColumnInfo(defaultValue = "") val displayCurrencyName: String = "",
     /** Stored minor units per display unit (power of 10; Rial → Toman = 10). */
     @ColumnInfo(defaultValue = "1") val displayDivisor: Long = 1,
+    /** Where residents pay (schema v6): card number or IBAN as the manager typed it; shown on bills. */
+    @ColumnInfo(defaultValue = "") val payAccount: String = "",
+    /** Account holder's name for [payAccount]. */
+    @ColumnInfo(defaultValue = "") val payHolder: String = "",
 )
 
 @Serializable

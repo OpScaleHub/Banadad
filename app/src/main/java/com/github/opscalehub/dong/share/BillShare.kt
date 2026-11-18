@@ -29,7 +29,54 @@ data class Bill(
     val later: Long = 0,
     /** Credits, adjustments and refunds since the month began, signed as they move [due]. */
     val adjust: Long = 0,
+    /** The month's payment deadline, formatted; shown while something is owed. */
+    val dueDate: String? = null,
+    /** Where to pay (building settings); blank = not shown. */
+    val payAccount: String = "",
+    val payHolder: String = "",
 )
+
+/** One resident payment, as a receipt the manager sends back. */
+data class Receipt(
+    val building: String,
+    val unit: String,
+    val amount: Long,
+    val date: String,
+    val method: String,
+    val reference: String,
+    /** The unit's balance now: > 0 still owed, < 0 credit. */
+    val balance: Long,
+    val today: String,
+)
+
+/** Where residents pay, for bills and messages. */
+object PayTo {
+    /**
+     * A card number (16 digits) or IBAN (IR + 24 digits) in groups of four, kept left-to-right
+     * inside Persian text (otherwise the bidi algorithm reverses the groups). Anything else is
+     * returned as typed.
+     */
+    fun format(account: String): String {
+        val raw = com.github.opscalehub.dong.i18n.Fmt.latin(account).filter { !it.isWhitespace() && it != '-' }.uppercase()
+        val grouped = when {
+            raw.length == 16 && raw.all { it.isDigit() } -> raw.chunked(4).joinToString(" ")
+            raw.length == 26 && raw.startsWith("IR") && raw.drop(2).all { it.isDigit() } -> raw.chunked(4).joinToString(" ")
+            else -> account.trim()
+        }
+        return "\u2066$grouped\u2069"
+    }
+
+    /** A line for reminder messages, or null when the building has no payment details. */
+    fun line(account: String, holder: String): String? = when {
+        account.isBlank() -> null
+        holder.isBlank() -> S.payLine.format(format(account))
+        else -> S.payLineHolder.format(format(account), holder.trim())
+    }
+
+    /** The reminder message: balance, the deadline if any, and where to pay. */
+    fun reminder(unit: String, building: String, amount: String, due: String?, account: String, holder: String): String =
+        listOfNotNull(S.reminderText.format(unit, building, amount), due?.let { S.dueLine.format(it) }, line(account, holder)).joinToString("\n")
+}
 
 /** A unit's bill as an image, and sharing it so the app learns that it went out. */
 object BillShare {
@@ -57,6 +104,13 @@ object BillShare {
             if (bill.due != 0L) money.withUnit(kotlin.math.abs(bill.due)) else null,
             if (bill.due > 0) ImageDoc.RED else ImageDoc.TEAL,
         ))
+        if (bill.due > 0 && bill.dueDate != null) add(Block.Row(S.billDue, bill.dueDate, bold = true))
+        if (bill.due > 0 && bill.payAccount.isNotBlank()) {
+            add(Block.Rule)
+            add(Block.Section(S.payTo))
+            add(Block.Row(S.payAccount, PayTo.format(bill.payAccount), bold = true))
+            if (bill.payHolder.isNotBlank()) add(Block.Row(S.payHolder, bill.payHolder.trim()))
+        }
         add(Block.Footer("${bill.date}، ${S.billFooter}"))
     }
 
@@ -104,6 +158,29 @@ object BillShare {
             }
         }
     }
+}
+
+/** A receipt for one payment: amount, date, how, and what is still owed. */
+object ReceiptShare {
+    fun blocks(r: Receipt, money: MoneyFormat): List<Block> = buildList {
+        add(Block.Title(S.receiptTitle))
+        add(Block.Subtitle("${r.building}، ${S.unit} ${r.unit}"))
+        add(Block.Big(S.receiptAmount, money.withUnit(r.amount), ImageDoc.TEAL))
+        add(Block.Row(S.receiptDate, r.date))
+        if (r.method.isNotBlank()) add(Block.Row(S.receiptMethod, r.method))
+        if (r.reference.isNotBlank()) add(Block.Row(S.receiptRef, "\u2066${r.reference.trim()}\u2069"))
+        add(Block.Rule)
+        add(Block.Row(
+            when { r.balance > 0 -> S.receiptRemaining; r.balance < 0 -> S.billCredit; else -> S.billSettled },
+            if (r.balance != 0L) money.withUnit(kotlin.math.abs(r.balance)) else "",
+            bold = true,
+        ))
+        add(Block.Footer("${r.today}، ${S.billFooter}"))
+    }
+
+    fun share(context: Context, r: Receipt, money: MoneyFormat) =
+        ImageDoc.share(context, ImageDoc.render(context, blocks(r, money)), "receipt-${ImageDoc.asciiName(r.unit, "unit")}",
+            S.receiptText.format(money.withUnit(r.amount), r.unit, r.building))
 }
 
 /** The month at a glance for the building's group or channel: totals, expenses, optionally units. */

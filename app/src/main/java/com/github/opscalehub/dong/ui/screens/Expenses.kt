@@ -306,10 +306,14 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                         date = date.value!!, description = description.trim(), categoryId = category!!.id, amountMinor = amount.value!!,
                         supplierId = supplier?.id, fundId = fund!!.id, periodId = periodSel?.id, documentRef = docRef, notes = notes, policyJson = pol!!.encode(),
                     )
-                    vm.run(S.saved, onSuccess = { nav.popBackStack() }) {
+                    vm.run(if (existing == null) null else S.saved, onSuccess = { nav.popBackStack() }) {
                         val named = if (e.description.isBlank()) e.copy(description = category!!.name) else e
                         if (saveAsDefault && pol != category!!.policy()) vm.repos.expenses.saveCategory(category!!.copy(defaultPolicyJson = pol!!.encode()))
-                        if (existing == null) vm.repos.expenses.create(named, if (payNow) cash.firstOrNull()?.id else null) else vm.repos.expenses.update(named)
+                        if (existing == null) {
+                            val id = vm.repos.expenses.create(named, if (payNow) cash.firstOrNull()?.id else null)
+                            // A new expense can be taken back from the snackbar (voided, with its payment).
+                            vm.offerUndo(S.expenseSaved) { vm.repos.expenses.void(id, S.undoReason) }
+                        } else vm.repos.expenses.update(named)
                     }
                 }, enabled = valid, modifier = Modifier.fillMaxWidth()) { Text(S.save) }
                 if (!valid) {

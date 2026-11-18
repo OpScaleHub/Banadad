@@ -137,6 +137,29 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                     }
                 }
             }
+            // ---- after the deadline: who still owes --------------------------------
+            item {
+                val d = report ?: return@item
+                val p = com.github.opscalehub.dong.data.lastBilled(d) ?: return@item
+                val due = p.dueDate ?: return@item
+                val debtors = d.balances.units.count { it.value > 0 }
+                if (vm.today <= due || debtors == 0) return@item
+                NoticeCard(S.overdueTitle.format(p.name), S.overdueBody.format(Fmt.number(debtors.toLong())) + if (building.payAccount.isNotBlank()) S.overdueCard else "", S.overdueAction, error = true) { nav.navigate(Routes.COLLECT) }
+            }
+            // ---- backup reminder: the data lives only on this phone ----------------
+            item {
+                val last by vm.ui.lastBackup.collectAsState()
+                val snooze by vm.ui.backupSnooze.collectAsState()
+                // The demo building (synthetic data) never asks for a backup.
+                val hasData = report?.entries?.isNotEmpty() == true && building.name != SampleData.DEMO_NAME && !building.name.contains("ساختگی")
+                if (!com.github.opscalehub.dong.ui.UiPrefs.backupDue(vm.today, last, snooze, hasData)) return@item
+                val backupNow = rememberBackup(vm)
+                NoticeCard(
+                    if (last == 0L) S.backupNever else S.backupDays.format(Fmt.number(vm.today - last)), S.backupWhy, S.backupNow,
+                    secondary = S.backupLater to { vm.ui.snoozeBackup(vm.today + com.github.opscalehub.dong.ui.UiPrefs.BACKUP_SNOOZE_DAYS) },
+                    onClick = backupNow,
+                )
+            }
             // ---- key numbers -------------------------------------------------
             item {
                 val bal = report?.balances
@@ -246,6 +269,23 @@ private fun StepRow(n: Int, s: StepState) {
         }
         // Auto-mirrored: points left in RTL, i.e. "forward".
         if (s.enabled) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** A card that asks for one action now (and optionally «later»). */
+@Composable
+private fun NoticeCard(title: String, body: String, action: String, error: Boolean = false, secondary: Pair<String, () -> Unit>? = null, onClick: () -> Unit) {
+    val bg = if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer
+    val fg = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bg)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = fg)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = fg)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onClick) { Text(action) }
+                secondary?.let { (label, f) -> TextButton(onClick = f) { Text(label, color = fg) } }
+            }
+        }
     }
 }
 

@@ -47,6 +47,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages = _messages.asSharedFlow()
+    /** A just-saved action that the snackbar offers to take back. */
+    class Undo(val text: String, val action: suspend () -> Unit)
+    private val _undos = MutableSharedFlow<Undo>(extraBufferCapacity = 4)
+    val undos = _undos.asSharedFlow()
+    fun offerUndo(text: String, action: suspend () -> Unit) { _undos.tryEmit(Undo(text, action)) }
+
     private val _busy = MutableStateFlow(false)
     val busy = _busy.asStateFlow()
 

@@ -154,8 +154,11 @@ fun PaymentDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, cal: com
     val date = rememberDate(vm.today, cal)
     var method by remember { mutableStateOf(S.methods.first()) }
     var ref by rememberSaveable { mutableStateOf("") }
+    // After saving: a receipt for the resident, or undo a mistyped payment.
+    var saved by remember { mutableStateOf<String?>(null) }
+    saved?.let { id -> PaymentSavedDialog(vm, id, unit!!.label, amount.value ?: 0, close); return }
     FormDialog(S.newPayment, close, {
-        vm.run(S.saved, onSuccess = close) { vm.repos.finance.receivePayment(b, unit!!.id, amount.value!!, account!!.id, date.value!!, ref, method = method) }
+        vm.run { saved = vm.repos.finance.receivePayment(b, unit!!.id, amount.value!!, account!!.id, date.value!!, ref, method = method) }
     }, canConfirm = unit != null && (amount.value ?: 0) > 0 && account != null && date.value != null) {
         Hint(S.paymentNotIncome)
         Dropdown(S.unit, units.filter { it.active }, unit, { unit = it }, { it.label })
@@ -167,6 +170,29 @@ fun PaymentDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, cal: com
         SingleChoice(S.methods, method, { method = it }) { it }
         TextInput(S.reference, ref, { ref = it })
     }
+}
+
+/** Shown right after a payment is saved: send the resident a receipt, or undo the payment. */
+@Composable
+fun PaymentSavedDialog(vm: AppViewModel, entryId: String, unitLabel: String, amount: Long, close: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val mf = com.github.opscalehub.dong.ui.LocalMoney.current
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = close,
+        title = { Text(S.paymentSaved) },
+        text = { Text(S.paymentSavedBody.format(mf.withUnit(amount), unitLabel)) },
+        confirmButton = {
+            Button(onClick = {
+                vm.run(onSuccess = close) { com.github.opscalehub.dong.share.ReceiptShare.share(context, vm.repos.bills.receipt(entryId), mf) }
+            }) { Text(S.sendReceipt) }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { vm.run(S.undone, onSuccess = close) { vm.repos.finance.reverse(entryId, S.undoReason) } }) { Text(S.undo) }
+                TextButton(onClick = close) { Text(S.close) }
+            }
+        },
+    )
 }
 
 @Composable

@@ -286,7 +286,7 @@ object StatementRenderer {
                     w.unitLiters[uid]?.let { append(" مصرف واحد شما: ").append(Fmt.cubicMeters(it)).append(" م³.") }
                     append("</p>")
                 }
-                append("<footer class=\"muted\">تهیه‌شده با برنامه «دنگ» در ").append(Fmt.dateTime(d.generatedAt, cal)).append("</footer>")
+                append("<footer class=\"muted\">تهیه‌شده با برنامه «دُنگ» در ").append(Fmt.dateTime(d.generatedAt, cal)).append("</footer>")
                 append("</section>")
             }
             append("</body></html>")

@@ -168,6 +168,9 @@ class EndToEndTest {
         clickLast("بستن ماه و صدور شارژ")
         clickLast("بستن ماه و صدور شارژ") // confirm in dialog
         rule.waitUntil(10_000) { runBlocking { container.db.periodDao().periods(building.id).single().status == PeriodStatus.FINALIZED } }
+        // 0.7.0: closing a month offers a backup (unless this phone already made one today).
+        rule.waitForIdle()
+        if (rule.onAllNodesWithText("حالا وقت خوبی برای گرفتن فایل پشتیبان", substring = true).fetchSemanticsNodes().isNotEmpty()) clickLast("انصراف")
         runBlocking {
             val bal = container.repos.finance.balances(building.id)
             assertEquals(500_000L, bal.units.getValue(units.getValue("۱-۱").id))
@@ -195,6 +198,10 @@ class EndToEndTest {
         type("مبلغ", "50000")
         clickLast("ذخیره")
         rule.waitUntil(5_000) { runBlocking { container.repos.finance.balances(building.id).units.getValue(units.getValue("۱-۱").id) == 0L } }
+        // 0.7.0: the saved payment offers a receipt and undo; close it.
+        waitFor("دریافت ثبت شد")
+        waitFor("ارسال رسید")
+        clickLast("بستن")
 
         // 5. reverse it from «بیشتر» → all transactions
         tab("بیشتر")
