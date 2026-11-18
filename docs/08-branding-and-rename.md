@@ -1,6 +1,6 @@
 # Branding: دنگ / Dang (formerly "Dong")
 
-- Persian name: **دنگ** (primary, everywhere users see the product).
+- Persian name: **دنگ**, shown with the vowel mark as **دُنگ** from 0.7.0 (primary, everywhere users see the product).
 - Latin spelling: **Dang**. Earlier releases and documents used "Dong".
 - Tagline: «حساب‌وکتاب ساختمان، ساده و شفاف».
 - Short description: «مدیریت هزینه‌ها و شارژ ساختمان، بدون نیاز به اینترنت».
@@ -8,7 +8,7 @@
   repository, git and release-download URLs to the new name).
 - Landing page: `https://opscalehub.github.io/Dang/`.
 
-## Planned for the next release: show how the name is pronounced (owner, 2026-11-18)
+## The name is shown as «دُنگ» (owner, 2026-11-18; done in 0.7.0)
 
 Testers can't tell how to read «دنگ». Without a vowel mark it can be read *dang* (دَنگ, which
 means dazed) instead of *dong* (دُنگ, a share), which is the meaning the app is named after.
@@ -21,8 +21,10 @@ Where the name changes to «دُنگ»:
 - the launcher label: `app_name` in `app/src/main/res/values/strings.xml`
 - the in-app name `S.appName` (top bar, welcome screen, shared bill images and exports)
 - the Cafe Bazaar listing title in Pishkhan
-- the landing page `<title>`, `og:title`, `application-name` and the icon's `aria-label` in
-  `site/`
+- the landing page `<title>`, `og:title`, `application-name`, headings and the icon's
+  `aria-label` in `site/`, and the social card `site/assets/og.png` (0.7.0: rebuilt from an
+  HTML layout with headless Chrome; the meta descriptions keep the plain «دنگ» for search)
+- in-app sentences that name the app (privacy note, update card, feedback, bill footer, exports)
 
 Notes for whoever does it:
 

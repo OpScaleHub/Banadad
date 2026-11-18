@@ -202,3 +202,11 @@ What changed in each release, and why, is in docs/13. These are the results at 0
 | Unit + Robolectric, incl. `PrepaidAndVoidTest` (advance charge on day 1 and due on the 10th, finalize posts only the remainder, months start by themselves, a void reverses payments and shares, a void in a closed month posts a correction and a revision), migration 4→5 (`inAdvance`), and older backups upgraded on restore | 153 tests, 0 failures |
 | Instrumented E2E on `qg2` (the test now switches «پرداخت شد» off, so the paid-now default is covered) | 1/1 pass |
 | Emulator by hand: wizard with a fixed charge and metered water; a water bill paid from the fund is not charged to units; voiding it puts the cash back; the expense form and the payment dialog stay above the keyboard; Toman/Rial switch in Settings | OK |
+
+## 0.7.0 — backup reminder, where to pay, receipts, follow-up, undo, help
+
+| Check | Result |
+|---|---|
+| Unit + Robolectric, incl. `ReceiptsAndPayToTest` (card/IBAN grouping kept left-to-right, reminder with deadline and payment line, bill rows only while owed, receipt amount/method/reference/balance, undo of a payment as a reversal, only resident payments have receipts, backup reminder rule) and migration 5→6 | 160 tests, 0 failures |
+| Instrumented E2E on `qg2` (dismisses the backup offer after closing; checks the payment-saved dialog offers a receipt) | 1/1 pass |
+| Emulator by hand: overdue card on Home; help dialog; payment details saved in Settings and printed on the bill image (groups in the right order); payment-saved dialog → receipt image; undo of a payment restores the balance; undo snackbar on a new expense voids it; backup card on a non-demo building disappears after saving a backup; backup offer after closing a month | OK |

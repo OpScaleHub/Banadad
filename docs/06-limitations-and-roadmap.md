@@ -41,13 +41,12 @@ target, late fees.
 
 | Priority | Item | Notes |
 |---|---|---|
-| P0 | **Testers' feedback round** (ongoing since 0.4.x) | Testers send feedback by email from «بیشتر ← نظر یا گزارش مشکل» (0.6.0; the top-bar «نظر» and the SUS survey were removed) and Bazaar users can rate the app; synthesize per docs/10 step 4 before building more. Reports handled so far: opening balances (0.4.6), one-step void, prepaid monthly charge and one fund (0.5.0), fewer knobs (0.6.0), keyboard covering forms (0.6.1) — see docs/13. Open UX suggestions: "what is this page?" help, undo snackbar after saving (docs/09). |
-| P1 | **Show the pronunciation of the name: «دُنگ»** (owner, 2026-11-18; next release) | Add the zamma to the user-visible name: launcher label, in-app name, Bazaar title, landing page. No repository or id changes. Details: docs/08 |
+| P0 | **Testers' feedback round** (ongoing since 0.4.x) | Testers send feedback by email from «بیشتر ← نظر یا گزارش مشکل» (0.6.0; the top-bar «نظر» and the SUS survey were removed) and Bazaar users can rate the app; synthesize per docs/10 step 4 before building more. Reports handled so far: opening balances (0.4.6), one-step void, prepaid monthly charge and one fund (0.5.0), fewer knobs (0.6.0), keyboard covering forms (0.6.1) — see docs/13. Done in 0.7.0: "what is this page?" help and undo after saving (docs/09), backup reminder, payment details on bills, receipts, follow-up after the due date. |
 | P1 | Share bills to all debtors in one go | Partly done in 0.3.1: «ارسال قبض واحدها» lists every unit with sent status; each bill still opens its own share sheet |
 | P1 | F-Droid / Play listing | Signed releases and in-app updates exist since 0.2.0/0.3.0 |
-| P2 | Receipt photos (content URI + migration v5) | Backup must then include files (zip) |
+| P2 | Receipt photos (content URI + a schema migration) | Backup must then include files (zip) |
 | P2 | Payment allocation to specific charges (instead of oldest-first) | Aging and collection reports already use oldest-first settlement |
-| P2 | Reminders for due dates and missing readings | WorkManager, local only |
+| P2 | Phone notifications for due dates and missing readings | WorkManager, local only. 0.7.0 already shows an in-app card after the due date and a backup reminder |
 | P2 | **Shared read-only view for residents via Google Drive** (owner's idea, 2026-10-18; deliberately not started) | The manager publishes the building's workbook (or a summary) to their own Google Drive/Sheets and shares a view-only link with residents, who see balances and monthly reports without installing anything. Open questions for that round: Google sign-in and Drive scope (`drive.file` only), automatic vs. manual publish after closing a month, what residents may see (per-unit debts are sensitive — same opt-in as the month summary image), and keeping the app usable fully offline. Builds on the existing XLSX export and the month summary image. |
 | P3 | Optional sync / shared access with roles | Requires a backend; append-only journal and UUIDs already fit |
 | — | Additional languages | Not planned: the product targets Iranian buildings (see docs/08) |

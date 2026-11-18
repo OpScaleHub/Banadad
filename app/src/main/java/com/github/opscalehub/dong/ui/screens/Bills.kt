@@ -58,7 +58,7 @@ fun sendProgress(billed: Set<String>, shares: List<BillShareEntity>, periodId: S
 /** Home step 4: every unit's bill for a closed month, with who has received it. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SendBillsScreen(vm: AppViewModel, periodId: String) {
+fun SendBillsScreen(vm: AppViewModel, periodId: String, onAddPayment: () -> Unit = {}) {
     val b by vm.building.collectAsState()
     val building = b ?: return
     val periods by vm.periods.collectAsState()
@@ -86,6 +86,13 @@ fun SendBillsScreen(vm: AppViewModel, periodId: String) {
                 SummaryShareButton(vm, building, p)
             }
         }
+        // Residents ask "where do I pay?": nudge once until the card number is on the bills.
+        if (building.payAccount.isBlank()) item {
+            SectionCard {
+                Hint(S.payMissing, MaterialTheme.colorScheme.error)
+                androidx.compose.material3.OutlinedButton(onClick = onAddPayment) { Text(S.payAdd) }
+            }
+        }
         val rows = units.filter { it.id in billed }
         items(rows.size) { i ->
             val u = rows[i]
@@ -109,7 +116,7 @@ fun SendBillsScreen(vm: AppViewModel, periodId: String) {
                     val share = {
                         vm.run {
                             val bill = vm.repos.bills.bill(building.id, u.id, p.id)
-                            val reminder = S.reminderText.format(u.label, building.name, mf.withUnit(bill.due.coerceAtLeast(0)))
+                            val reminder = reminderFor(building, u.label, mf.withUnit(bill.due.coerceAtLeast(0)), p)
                             BillShare.shareBill(context, bill, mf, reminder, p.id, u.id)
                         }
                     }

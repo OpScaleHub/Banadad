@@ -65,7 +65,7 @@ fun MoreScreen(vm: AppViewModel, nav: NavController) {
         ),
         listOfNotNull(
             Entry(S.buildingsAndSwitch, S.switchBuilding, Icons.Filled.Home, Routes.BUILDINGS),
-            Entry(S.settings, S.backupTitle, Icons.Filled.Settings, Routes.SETTINGS),
+            Entry(S.settings, S.menuSettings, Icons.Filled.Settings, Routes.SETTINGS),
         ),
         listOf(
             Entry(S.feedbackLong, S.feedbackMenuHint, Icons.Filled.Email, Routes.FEEDBACK),

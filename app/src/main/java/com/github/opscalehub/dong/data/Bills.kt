@@ -50,7 +50,22 @@ class BillRepository(private val r: Repos) {
         val month = lines.sumOf { it.second }
         return Bill(b.name, unit.label, p?.name, lines, since?.opening ?: 0, since?.payments ?: 0, total.closing, Fmt.date(r.clock.today(), b.calendar),
             later = since?.let { it.charges - month } ?: 0,
-            adjust = since?.let { it.refunds - it.creditsAndAdjustments } ?: 0)
+            adjust = since?.let { it.refunds - it.creditsAndAdjustments } ?: 0,
+            dueDate = p?.dueDate?.let { Fmt.date(it, b.calendar) },
+            payAccount = b.payAccount, payHolder = b.payHolder)
+    }
+
+    /** A receipt for the resident payment [entryId]. */
+    suspend fun receipt(entryId: String): com.github.opscalehub.dong.share.Receipt {
+        val fin = r.db.financeDao()
+        val e = fin.entry(entryId) ?: fail(OpError.NOT_FOUND)
+        if (e.type != com.github.opscalehub.dong.domain.ledger.EntryType.RESIDENT_PAYMENT || e.unitId == null) fail(OpError.INVALID_INPUT)
+        val b = r.db.buildingDao().building(e.buildingId) ?: fail(OpError.NOT_FOUND)
+        val unit = r.db.buildingDao().units(e.buildingId).firstOrNull { it.id == e.unitId } ?: fail(OpError.NOT_FOUND)
+        val amount = fin.linesOf(entryId).filter { it.account == com.github.opscalehub.dong.domain.ledger.AccountKind.RECEIVABLE }.sumOf { -it.amountMinor }
+        val balance = r.finance.unitStatement(e.buildingId, e.unitId).closing
+        return com.github.opscalehub.dong.share.Receipt(b.name, unit.label, amount, Fmt.date(e.entryDate, b.calendar), e.method, e.reference, balance,
+            Fmt.date(r.clock.today(), b.calendar))
     }
 
     suspend fun monthSummary(buildingId: String, periodId: String): MonthSummary {

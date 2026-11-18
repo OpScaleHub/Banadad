@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
@@ -118,6 +119,13 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
     val busy by vm.busy.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(it) } }
+    LaunchedEffect(Unit) {
+        vm.undos.collect { u ->
+            // Long enough for an older user to read it and reach the button.
+            val r = snackbar.showSnackbar(u.text, actionLabel = S.undo, duration = androidx.compose.material3.SnackbarDuration.Long)
+            if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) vm.run(S.undone) { u.action() }
+        }
+    }
     val money = building?.let { MoneyFormat.of(it) } ?: MoneyFormat()
 
     CompositionLocalProvider(LocalMoney provides money) {
@@ -135,6 +143,15 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
         val route = entry?.destination?.route ?: Routes.HOME
         val isTab = tabs.any { it.route == route }
         var switcher by remember { mutableStateOf(false) }
+    var help by remember { mutableStateOf<String?>(null) }
+        help?.let { text ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { help = null },
+                title = { Text(S.helpTitle) },
+                text = { Text(text) },
+                confirmButton = { TextButton(onClick = { help = null }) { Text(S.gotIt) } },
+            )
+        }
         Scaffold(
             topBar = {
                 Column {
@@ -155,6 +172,9 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
                         },
                         navigationIcon = {
                             if (!isTab) IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, S.back) }
+                        },
+                        actions = {
+                            helpFor(route)?.let { text -> IconButton(onClick = { help = text }) { Icon(Icons.Filled.Info, S.helpTitle) } }
                         },
                     )
                     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -184,6 +204,24 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
             }
         }
     }
+}
+
+/** The «what is this page?» text for [route], or null where the page explains itself. */
+private fun helpFor(route: String): String? = when {
+    route == Routes.HOME -> S.helpHome
+    route == Routes.UNITS || route.startsWith("unit/") -> S.helpUnits
+    route == Routes.COLLECT -> S.helpCollect
+    route.startsWith("send/") -> S.helpSend
+    route == Routes.EXPENSES -> S.helpExpenses
+    route.startsWith("expense/") -> S.helpExpense
+    route == Routes.PERIODS -> S.helpPeriods
+    route.startsWith("period/") -> S.helpPeriod
+    route == Routes.WATER || route == Routes.READINGS || route.startsWith("meter/") -> S.helpMeters
+    route == Routes.FINANCE -> S.helpFinance
+    route == Routes.REPORTS -> S.helpReports
+    route == Routes.CHARGE_ITEMS -> S.helpChargeItems
+    route == Routes.CATEGORIES -> S.helpCategories
+    else -> null
 }
 
 private fun titleFor(route: String): String = when {
@@ -217,7 +255,7 @@ private fun DongNavHost(nav: NavHostController, vm: AppViewModel) {
         composable(Routes.HOME) { HomeScreen(vm, nav) }
         composable(Routes.UNITS) { UnitsScreen(vm, nav) }
         composable(Routes.COLLECT) { UnitsScreen(vm, nav, collect = true) }
-        composable("send/{id}") { SendBillsScreen(vm, it.arguments?.getString("id")!!) }
+        composable("send/{id}") { SendBillsScreen(vm, it.arguments?.getString("id")!!) { nav.navigate(Routes.SETTINGS) } }
         composable(Routes.EXPENSES) { ExpensesScreen(vm, nav) }
         composable(Routes.REPORTS) { ReportsScreen(vm, nav) }
         composable(Routes.MORE) { MoreScreen(vm, nav) }

@@ -51,5 +51,13 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    /** v6: where residents pay (card/IBAN and holder), printed on bills and reminders. */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE buildings ADD COLUMN payAccount TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE buildings ADD COLUMN payHolder TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

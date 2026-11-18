@@ -59,6 +59,12 @@ unexplained-water (leak) trend — all drawn in-app, offline.
 - **Ledger** — double-entry, append-only, with linked reversals, opening
   balances, operating/reserve funds, cash/bank accounts and an audit log.
   Resident debt is kept separate from building cash.
+- **Residents** — bills carry the month's due date and the building's card number or IBAN
+  (Settings); a payment receipt image can be sent right after a payment is recorded, or later
+  from the unit's history; after the due date Home lists who still owes with a ready reminder.
+- **Safety nets** — undo right after saving a payment or an expense (as a reversal/void, never
+  a delete); a backup reminder on Home (none yet, or 30+ days) and right after closing a month;
+  «این صفحه چیست؟» help on the main screens.
 - **Reports & files** — dashboard, unit statements, expenses by category,
   period comparison, water reconciliation; export an **XLSX workbook**, a
   journal **CSV**, a printable **HTML monthly statement**; **backup/restore**
@@ -110,7 +116,7 @@ Requirements to build: JDK 17, Android SDK 35. Android 8.0 (API 26) or newer to 
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                      # 153 JVM + Robolectric tests (0.6.1)
+./gradlew testDebugUnitTest                      # 160 JVM + Robolectric tests (0.7.0)
 ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   # UI end-to-end (wipes app data!)
 python workbook/verify_workbook.py               # needs openpyxl + formulas
 ```
@@ -127,7 +133,7 @@ app/src/main/java/com/github/opscalehub/dong/
   i18n/     Persian labels and number/date formatting
   ui/       Jetpack Compose screens (Persian, RTL); ui/charts = in-app charts
   share/    bill image rendering + share sheet (FileProvider, no permissions)
-app/schemas/   exported Room schemas (v1–v5)
+app/schemas/   exported Room schemas (v1–v6)
 workbook/      accounting prototype workbook + generator + verifier
 docs/          requirements, domain model, plan, architecture, tests, roadmap
 ```

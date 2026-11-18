@@ -51,7 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private fun problemText(c: ProblemCode) = when (c) {
-    ProblemCode.NOT_A_BACKUP -> "این فایل، پشتیبان «دنگ» نیست."
+    ProblemCode.NOT_A_BACKUP -> "این فایل، پشتیبان «دُنگ» نیست."
     ProblemCode.UNSUPPORTED_VERSION -> "این پشتیبان با نسخه جدیدتری از برنامه ساخته شده است."
     ProblemCode.CHECKSUM_MISMATCH -> "فایل آسیب دیده یا دستکاری شده است (کد کنترل مطابقت ندارد)."
     ProblemCode.MALFORMED -> "ساختار فایل نامعتبر است."
@@ -68,20 +68,7 @@ private fun problemText(c: ProblemCode) = when (c) {
 fun SettingsScreen(vm: AppViewModel) {
     val b by vm.building.collectAsState()
     val building = b ?: return
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri != null) scope.launch {
-            try {
-                val text = vm.backup.export()
-                withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) } ?: error("no stream") }
-                vm.message(S.backupDone)
-            } catch (e: Exception) {
-                vm.message(S.unexpectedError)
-            }
-        }
-    }
+    val backupNow = rememberBackup(vm)
     ScreenList {
         item {
             val scale by vm.ui.textScale.collectAsState()
@@ -92,9 +79,12 @@ fun SettingsScreen(vm: AppViewModel) {
             }
         }
         item { BuildingSettingsCard(vm) }
+        item { PaymentDetailsCard(vm) }
         item {
             SectionCard(S.backupTitle, subtitle = S.backupNote) {
-                Button(onClick = { backupLauncher.launch("dang-backup-${Fmt.date(vm.today, building.calendar, persian = false).replace('/', '-')}.json") }, Modifier.fillMaxWidth()) { Text(S.backupNow) }
+                val last by vm.ui.lastBackup.collectAsState()
+                KeyValue(S.backupLast, if (last == 0L) S.backupNone else Fmt.date(last, building.calendar))
+                Button(onClick = backupNow, Modifier.fillMaxWidth()) { Text(S.backupNow) }
                 RestoreButton(vm)
             }
         }
@@ -114,6 +104,30 @@ fun SettingsScreen(vm: AppViewModel) {
         }
     }
 
+}
+
+/**
+ * Writes a backup of every building to a file the user picks (the system picker also offers
+ * Google Drive), and remembers the day so the home screen stops reminding. Returns the launcher.
+ */
+@Composable
+fun rememberBackup(vm: AppViewModel, onDone: () -> Unit = {}): () -> Unit {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                val text = vm.backup.export()
+                withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) } ?: error("no stream") }
+                vm.ui.backedUp(vm.today)
+                vm.message(S.backupDone)
+                onDone()
+            } catch (e: Exception) {
+                vm.message(S.unexpectedError)
+            }
+        }
+    }
+    return { launcher.launch("dang-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json") }
 }
 
 /** "Restore from backup" button with file picker, bounded read and the preview/confirm dialog. */
@@ -178,6 +192,22 @@ private fun BuildingSettingsCard(vm: AppViewModel) {
                     displayCurrencyName = if (toman) S.showToman else "", displayDivisor = if (toman) 10 else 1))
             }
         }, enabled = name.isNotBlank() && digits.valid && (digits.value ?: -1) in 0..4 && (rounding.value ?: 0) >= 1) { Text(S.save) }
+    }
+}
+
+/** Card number / IBAN and holder printed on bills and reminders. */
+@Composable
+private fun PaymentDetailsCard(vm: AppViewModel) {
+    val b by vm.building.collectAsState()
+    val building = b ?: return
+    var account by rememberSaveable(building.id) { mutableStateOf(building.payAccount) }
+    var holder by rememberSaveable(building.id) { mutableStateOf(building.payHolder) }
+    SectionCard(S.payTitle, subtitle = S.payHint) {
+        TextInput(S.payAccount, account, { account = it }, keyboard = androidx.compose.ui.text.input.KeyboardType.Ascii)
+        TextInput(S.payHolder, holder, { holder = it })
+        Button(onClick = {
+            vm.run(S.saved) { vm.repos.buildings.updateSettings(building.copy(payAccount = account.trim(), payHolder = holder.trim())) }
+        }, enabled = account.trim() != building.payAccount || holder.trim() != building.payHolder) { Text(S.save) }
     }
 }
 

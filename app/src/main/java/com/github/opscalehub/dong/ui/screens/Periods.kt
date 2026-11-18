@@ -117,6 +117,9 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
     var correction by remember { mutableStateOf<PeriodRepository.CorrectionPreview?>(null) }
     var askReason by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    // After closing a month: the natural moment for a backup (once a month, with the books final).
+    var offerBackup by remember { mutableStateOf(false) }
+    val backupNow = rememberBackup(vm)
     var expanded by remember { mutableStateOf<String?>(null) }
     val names = vm.names()
     val digits = building.minorDigits
@@ -238,8 +241,14 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
     if (confirmFinalize) {
         ConfirmDialog(S.finalize, S.finalizeConfirm, { confirmFinalize = false }, {
             confirmFinalize = false
-            vm.run(S.finalizedOk) { vm.repos.periods.finalize(periodId) }
+            vm.run(S.finalizedOk, onSuccess = { offerBackup = vm.ui.lastBackup.value != vm.today }) { vm.repos.periods.finalize(periodId) }
         }, S.finalize)
+    }
+    if (offerBackup) {
+        ConfirmDialog(S.backupTitle, S.backupAfterClose + "\n\n" + S.backupWhy, { offerBackup = false }, {
+            offerBackup = false
+            backupNow()
+        }, S.backupNow)
     }
     if (askReason) {
         ReasonDialog(S.applyCorrection, S.correctionHint, { askReason = false }) { reason ->

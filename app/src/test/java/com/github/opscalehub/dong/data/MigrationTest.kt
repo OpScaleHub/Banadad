@@ -92,4 +92,21 @@ class MigrationTest {
         }
         db.close()
     }
+
+    @Test
+    fun `migrate 5 to 6 adds empty payment details and keeps the building`() {
+        helper.createDatabase("m56.db", 5).apply {
+            execSQL("INSERT INTO buildings (id, name, address, currencyCode, currencyName, minorDigits, roundingIncrement, occupancyBasis, calendar, notes, createdAt, displayCurrencyName, displayDivisor) VALUES ('b1','ساختمان','', 'IRR','ریال',0,1000,'DAY_WEIGHTED','JALALI','',1,'تومان',10)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m56.db", 6, true, *Migrations.ALL)
+        db.query("SELECT name, displayDivisor, payAccount, payHolder FROM buildings WHERE id = 'b1'").use { c ->
+            c.moveToFirst()
+            assertEquals("ساختمان", c.getString(0))
+            assertEquals(10L, c.getLong(1))
+            assertEquals("", c.getString(2))
+            assertEquals("", c.getString(3))
+        }
+        db.close()
+    }
 }

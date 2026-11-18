@@ -37,6 +37,7 @@ links to them.
 | 2026-11-17 | 0.5.0 | Testers' reports: (1) cancelling a bill took several steps, (2) Iranian buildings prepay the monthly charge by the 10th but Dang charged it at closing, (3) "two buckets" confused managers and a water bill paid from the pot was charged to units again by meter. Now: one-step cancel (payments reversed, closed months credited by a revision), prepaid monthly charge posted on day 1 (due the 10th, months start themselves), and in fixed-charge buildings every bill is covered by the charge unless marked «جدا از واحدها گرفته شود». Simple mode shows one «صندوق ساختمان». DB v5 (`charge_items.inAdvance`). |
 | 2026-11-17 | 0.6.0 | One app, fewer knobs: the simple/advanced switch is gone (simple is the app). Removed from the UI: calendar, currency, rounding and occupancy-basis settings, water tariffs, the split-formula editor, fund/cash-account management and fund transfers, audit log, meter serial/rollover, creating charge items by hand. Feedback: no more «نظر» on every screen and no SUS survey; «نظر یا گزارش مشکل» in «بیشتر» emails the support address on the Bazaar listing (share sheet if no email app), and the Bazaar edition adds «امتیاز و نظر در بازار». Engine and data unchanged; old buildings keep their settings. |
 | 2026-11-17 | 0.6.1 | Owner's report: the keyboard covered the form being filled. The app is edge-to-edge, so `adjustResize` alone does nothing: screens now use `imePadding()` and form dialogs are keyboard-aware (fields scroll, «ذخیره» stays visible); the keyboard's key moves to the next field. Toman/Rial display is back in settings. The cash-account picker is hidden when there is only one. |
+| 2026-11-18 | 0.7.0 | Owner's review of the whole app: backup reminder (home card when there is no backup or the last is 30+ days old, «بعداً» waits a week; a backup offer right after closing a month; last backup date in Settings, per phone), where to pay on bills and reminders (card number or IBAN and holder in Settings, grouped left-to-right; DB v6 `buildings.payAccount/payHolder`), the month's due date on bills, a payment receipt image (offered right after saving a payment, and from each payment in a unit's history), "due date passed, N units owe" card on Home with a reminder button per debtor, undo right after saving a payment or expense, «این صفحه چیست؟» help on the main screens. The name is shown as «دُنگ» everywhere users see it (docs/08). Landing page screenshots and social card retaken.
 
 ## 3. Key decisions and the reasons behind them
 
@@ -100,6 +101,15 @@ links to them.
 - **Feedback must reach the developer from anyone** (0.6.0): the share sheet only worked for
   testers who knew the owner. Feedback is emailed to the public support address of the Bazaar
   listing (`BuildConfig.SUPPORT_EMAIL`), and Bazaar users can rate the app in Bazaar.
+- **Undo where people mis-tap, help where they get lost** (0.7.0, from the docs/09 review): a
+  payment is followed by a small dialog (send a receipt / undo / close) rather than a snackbar,
+  because a receipt is usually wanted anyway and older users miss a snackbar; a new expense gets
+  an undo snackbar (it voids the expense with its payment). Undo is always a reversal or a void:
+  the journal stays append-only.
+- **Remind about backups, don't automate them** (0.7.0): the data is only on the phone and Android
+  cloud backup is off on purpose (financial data). The app cannot save to Drive silently without
+  an account and permissions, so it asks at the right moments (no backup yet, 30 days, after
+  closing a month) and the system file picker offers Google Drive.
 - **Name choices by what they do** («مساوی بین همه واحدها»، «به تعداد نفرات»، «از صندوق
   ساختمان») rather than by engine terms («دسته»، «پایه تسهیم»).
 - **Generate from the building's structure, keep later edits possible** (owner's principle,
@@ -163,7 +173,7 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (153 tests at 0.6.1; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (160 tests at 0.7.0; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then
@@ -178,8 +188,6 @@ links to them.
   1. Keep the testers on the latest release (docs/12); feedback arrives by email and as Bazaar
      reviews.
   2. Synthesize their feedback as in docs/10 step 4 before building anything new.
-  3. Open suggestions: short "what is this page?" help on Expenses, Months and Meters; an
-     «برگرداندن» (undo) snackbar after saving a payment or expense (docs/09).
-  4. Next release: show the name as «دُنگ» (docs/08), and retake the landing page screenshots
-     (they still show the 0.3.x demo).
-  5. Roadmap items in docs/06 (receipt photos, reminders, Drive read-only view).
+  3. Watch whether testers use the 0.7.0 additions (receipts, card number on bills, backup
+     reminder); drop what nobody uses.
+  4. Roadmap items in docs/06 (receipt photos, Drive read-only view).
