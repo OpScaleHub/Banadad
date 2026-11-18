@@ -116,7 +116,7 @@ Requirements to build: JDK 17, Android SDK 35. Android 8.0 (API 26) or newer to 
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                      # 161 JVM + Robolectric tests
+./gradlew testDebugUnitTest                      # 163 JVM + Robolectric tests
 ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   # UI end-to-end (wipes app data!)
 python workbook/verify_workbook.py               # needs openpyxl + formulas
 ```

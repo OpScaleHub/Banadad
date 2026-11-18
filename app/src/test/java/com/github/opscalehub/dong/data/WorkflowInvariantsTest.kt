@@ -41,6 +41,8 @@ class WorkflowInvariantsTest {
             val bill = r.bills.bill(b, u.id, billed?.id)
             assertEquals("$step: unit ${u.label} bill total", s.closing, bill.due)
         }
+        // The same invariants, as the phone checks them.
+        assertEquals("$step: self-check", emptyList<String>(), SelfCheck.run(r, b).problems)
     }
 
     @Test fun `first weeks of a fixed-charge building keep the books consistent`() = runBlocking {
@@ -98,5 +100,27 @@ class WorkflowInvariantsTest {
         check(b, "correction after closing")
         r.periods.deleteDraft(db.periodDao().periods(b).first { it.status == PeriodStatus.DRAFT }.id)
         check(b, "next month deleted")
+    }
+
+    @Test fun `self-check reports a broken ledger by codes only, without names or amounts`() = runBlocking {
+        val drafts = listOf(BuildingRepository.UnitDraft("واحد رضایی", 1, 6_000, 2))
+        val b = r.buildings.setup("ساختمان", "", true, 1000, drafts, 50_000_000, 0, BuildingRepository.ChargePlan.Fixed(BuildingRepository.FixedBasis.PER_UNIT, 5_000_000))
+        assertTrue(SelfCheck.run(r, b).ok)
+        // A line that no correct operation can write: the ledger no longer balances.
+        val entry = db.financeDao().entries(b).first()
+        db.financeDao().insertLines(listOf(com.github.opscalehub.dong.data.db.JournalLineEntity(newId(), entry.id, b,
+            com.github.opscalehub.dong.domain.ledger.AccountKind.entries.first(), 7_654_321)))
+        val h = SelfCheck.run(r, b)
+        assertTrue(h.problems.toString(), "ledger-unbalanced" in h.problems)
+        val text = h.problems.joinToString() + h.summary
+        assertTrue(text, text.none { it in '\u0600'..'\u06FF' } && "7654321" !in text)
+    }
+
+    @Test fun `both demo buildings pass the self-check`() = runBlocking {
+        for (history in listOf(0, 10)) {
+            val b = SampleData.createBuilding(r, history = history)
+            SampleData.addDemoData(r, b, history = history)
+            assertEquals("history=$history", emptyList<String>(), SelfCheck.run(r, b).problems)
+        }
     }
 }
