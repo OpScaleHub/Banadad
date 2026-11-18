@@ -200,7 +200,7 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
                             Hint("${S.floor} ${Fmt.number(u.floor.toLong())}، ${Fa.quantity(QuantityKind.AREA_CENTI_M2, u.areaCentiM2)}، ${Fmt.number((current[u.id] ?: 0).toLong())} ${S.people}" +
                                 parkingText(assignments.count { it.unitId == u.id && it.effectiveTo == null }))
                         }
-                        BalanceText(balances[u.id] ?: 0)
+                        if (report != null) BalanceText(balances[u.id] ?: 0)
                     }
                     if (collect) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { paying = u }, Modifier.weight(1f)) { Text(S.payNow) }
@@ -280,6 +280,7 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
     val lastClosed = report?.let { com.github.opscalehub.dong.data.lastBilled(it) } ?: periods.filter { it.status == PeriodStatus.FINALIZED }.maxByOrNull { it.endDate }
     var editing by remember { mutableStateOf(false) }
     var settingOpening by remember { mutableStateOf(false) }
+    var adjusting by remember { mutableStateOf(false) }
     val openingEditable = periods.none { it.status == PeriodStatus.FINALIZED }
     var addingOcc by remember { mutableStateOf(false) }
     var paying by remember { mutableStateOf(false) }
@@ -303,11 +304,11 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
                             parkingText(assignments.count { it.unitId == unit.id && it.effectiveTo == null }))
                     }
                 }
-                Text(
+                if (statement != null) Text(
                     when { balance > 0 -> S.owes; balance < 0 -> S.credit; else -> S.settled },
                     style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(if (balance == 0L) "—" else mf.withUnit(kotlin.math.abs(balance)), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
+                if (statement != null) Text(if (balance == 0L) "—" else mf.withUnit(kotlin.math.abs(balance)), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
                     color = if (balance > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { paying = true }) { Text(S.payNow) }
@@ -319,7 +320,9 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
                     }) { Text(S.shareBill) }
                     if (balance > 0) OutlinedButton(onClick = { BillShare.shareText(context, reminder()) }) { Text(S.shareReminder) }
                     TextButton(onClick = { editing = true }) { Text(S.edit) }
+                    // Before the first month closes: the balance from before the app. After: a dated correction.
                     if (openingEditable) TextButton(onClick = { settingOpening = true }) { Text(S.unitOpening) }
+                    else TextButton(onClick = { adjusting = true }) { Text(S.adjustment) }
                 }
             }
         }
@@ -391,6 +394,7 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
     }
     if (editing) UnitDialog(vm, unit, building.id) { editing = false }
     if (settingOpening) UnitOpeningDialog(vm, building.id, unit) { settingOpening = false }
+    if (adjusting) AdjustDialog(vm, building.id, units, building.calendar, building.minorDigits, preset = unit) { adjusting = false }
     if (paying) PaymentDialog(vm, building.id, units, building.calendar, 0, preset = unit, close = { paying = false })
     if (addingOcc) {
         val date = rememberDate(vm.today, building.calendar)

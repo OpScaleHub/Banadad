@@ -216,12 +216,13 @@ private fun RefundDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, c
     }
 }
 
+/** Corrects a unit's balance; the direction has no default, so an old debt is never saved as a credit by mistake. */
 @Composable
-private fun AdjustDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, cal: com.github.opscalehub.dong.domain.model.CalendarSystem, digits: Int, close: () -> Unit) {
+internal fun AdjustDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, cal: com.github.opscalehub.dong.domain.model.CalendarSystem, digits: Int, preset: UnitEntity? = null, close: () -> Unit) {
     val funds by vm.funds.collectAsState()
     val categories by vm.categories.collectAsState()
-    var unit by remember { mutableStateOf<UnitEntity?>(null) }
-    var credit by remember { mutableStateOf(true) }
+    var unit by remember { mutableStateOf(preset) }
+    var credit by remember { mutableStateOf<Boolean?>(null) }
     val amount = rememberMoney(null)
     var fund by remember { mutableStateOf<FundEntity?>(funds.firstOrNull { it.kind == FundKind.OPERATING }) }
     LaunchedEffect(funds) { if (fund == null) fund = funds.firstOrNull { it.kind == FundKind.OPERATING } }
@@ -230,11 +231,11 @@ private fun AdjustDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, c
     var reason by rememberSaveable { mutableStateOf("") }
     FormDialog(S.adjustment, close, {
         val a = amount.value!!
-        vm.run(S.saved, onSuccess = close) { vm.repos.finance.adjust(b, unit!!.id, if (credit) -a else a, fund!!.id, category?.id, date.value!!, reason) }
-    }, canConfirm = unit != null && (amount.value ?: 0) > 0 && fund != null && date.value != null && reason.isNotBlank()) {
+        vm.run(S.saved, onSuccess = close) { vm.repos.finance.adjust(b, unit!!.id, if (credit!!) -a else a, fund!!.id, category?.id, date.value!!, reason) }
+    }, canConfirm = unit != null && credit != null && (amount.value ?: 0) > 0 && fund != null && date.value != null && reason.isNotBlank()) {
         Dropdown(S.unit, units, unit, { unit = it }, { it.label })
         Text(S.adjustmentDirection, style = MaterialTheme.typography.labelMedium)
-        SingleChoice(listOf(true, false), credit, { credit = it }) { if (it) S.creditUnit else S.debitUnit }
+        SingleChoice(listOf<Boolean?>(false, true), credit, { credit = it }) { if (it == true) S.creditUnit else S.debitUnit }
         NumberInput(S.amount, amount)
         // One bucket: corrections go to the building's running money.
         Dropdown(S.category, listOf<CategoryEntity?>(null) + categories, category, { category = it }, { it?.name ?: S.none })
