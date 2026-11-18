@@ -4,7 +4,7 @@
 
 **دنگ** یعنی «سهم هر نفر از یک هزینه مشترک». این برنامه اندرویدی هزینه‌های
 ساختمان را بر اساس قواعدی که مدیر ساختمان تعیین می‌کند (مساوی، تعداد ساکنان،
-متراژ، کنتور آب، پارکینگ، وزنی یا مبلغ مشخص) بین واحدها تقسیم می‌کند، دفتر
+متراژ، کنتور آب، پارکینگ یا ضریب) بین واحدها تقسیم می‌کند، دفتر
 مالی دوطرفه نگه می‌دارد و بدون اینترنت، حساب کاربری یا سرور کار می‌کند.
 
 Dang (دنگ) is an offline-first Android app (Persian, right-to-left) for residential
@@ -15,12 +15,23 @@ downloading a new version of the app (can be switched off in Settings).
 ## What it does
 
 **Day to day** the app is organised around the manager's month: the home
-screen «این ماه» shows a five-step checklist (read meters → enter bills →
-review & close → send bills → collect) with live progress, key figures and
-a collection ring. Bills go to residents as an image through the phone's
+screen «این ماه» shows a step checklist with live progress, key figures and
+a collection ring. Buildings with a fixed monthly charge (the wizard's default)
+bill it **in advance**: each unit is charged on day 1 and has until the 10th
+to pay, the next month starts by itself, and the building's bills are paid
+from that one fund instead of being charged to units again (send → collect →
+enter bills → close). Buildings that split each month's bills charge units
+when the month is closed (meter readings, if any → enter bills → review &
+close → send → collect).
+
+The app is deliberately **simple** (0.6.0): one building fund, one cash box,
+a handful of named split choices. The engine below still supports more
+(several funds, tariffs, formula policies); buildings that already use those
+keep working, but the UI no longer offers them. Feedback goes by email from
+«بیشتر ← نظر یا گزارش مشکل». Bills go to residents as an image through the phone's
 share sheet (WhatsApp, Telegram, Eitaa…), with a ready-made reminder text.
-Amounts are shown in **تومان** while stored exactly in ریال (per-building
-setting). Reports include collection rate, debt aging, a monthly cash-flow
+Amounts are shown in **تومان** or ریال (per-building setting) while stored
+exactly in ریال. Reports include collection rate, debt aging, a monthly cash-flow
 waterfall, expenses by category vs. last month, a 12-month billed/collected
 trend, reserve growth, water use per unit vs. the building average and an
 unexplained-water (leak) trend — all drawn in-app, offline.
@@ -34,7 +45,9 @@ unexplained-water (leak) trend — all drawn in-app, offline.
   (the unexplained difference is shown and only allocated if a policy says
   how), tiered tariffs with fixed fee and surcharge, double-charge guard.
 - **Expenses** — configurable categories with default policies, suppliers,
-  partial supplier payments, credit notes, void with reason.
+  partial supplier payments, credit notes. **Void** is one step with a reason:
+  it reverses the expense's payments and the units' shares; in a closed month
+  it posts a correction dated today instead of touching the closed month.
 - **Allocation engine** — equal, per occupant (occupant-days), area, measured
   consumption, weighted, explicit amounts, parking spaces; subsets of units;
   fixed + percentage + remainder components. Shares always sum exactly to the
@@ -52,6 +65,9 @@ unexplained-water (leak) trend — all drawn in-app, offline.
   with checksum, validation, preview and duplicate-safe import.
 
 ## Install
+
+Users: [Cafe Bazaar](https://cafebazaar.ir/app/com.github.opscalehub.dong) or
+the APK from the [landing page](https://opscalehub.github.io/Dang/).
 
 Debug APK (built and tested): `app/build/outputs/apk/debug/app-debug.apk`
 
@@ -77,8 +93,9 @@ Requirements to build: JDK 17, Android SDK 35. Android 8.0 (API 26) or newer to 
 3. **واحدها** — see who owes what (with debt aging); on a unit, record a
    payment, **ارسال قبض** (share the bill image) or send a reminder.
 4. **گزارش** — charts for the month and the trend; export the XLSX workbook
-   or CSV. **بیشتر** — meters and tariffs, parking, categories, recurring
-   charges, all transactions, settings and **backup** (do it regularly).
+   or CSV. **بیشتر** — meters, parking, expense types, the monthly charge,
+   all transactions, settings (Toman/Rial, updates) and **backup** (do it
+   regularly), and feedback by email.
 
 ### Data, backup and sharing
 
@@ -93,7 +110,7 @@ Requirements to build: JDK 17, Android SDK 35. Android 8.0 (API 26) or newer to 
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                      # 116 JVM + Robolectric tests
+./gradlew testDebugUnitTest                      # 153 JVM + Robolectric tests (0.6.1)
 ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   # UI end-to-end (wipes app data!)
 python workbook/verify_workbook.py               # needs openpyxl + formulas
 ```
@@ -110,7 +127,7 @@ app/src/main/java/com/github/opscalehub/dong/
   i18n/     Persian labels and number/date formatting
   ui/       Jetpack Compose screens (Persian, RTL); ui/charts = in-app charts
   share/    bill image rendering + share sheet (FileProvider, no permissions)
-app/schemas/   exported Room schemas (v1–v3)
+app/schemas/   exported Room schemas (v1–v5)
 workbook/      accounting prototype workbook + generator + verifier
 docs/          requirements, domain model, plan, architecture, tests, roadmap
 ```
@@ -151,8 +168,11 @@ License 1.1 (see `licenses/Vazirmatn-OFL.txt`).
   The script bumps `version.properties`, runs the unit tests, builds a signed
   release APK, writes `site/release.json` (version, size, SHA-256, Jalali date),
   commits and tags `vX.Y.Z`, pushes, and publishes a GitHub Release with
-  `dong.apk` attached. The landing page's download button always points at
-  `releases/latest/download/dong.apk`.
+  `dang.apk`, `dang-X.Y.Z.apk` and `dang-bazaar-X.Y.Z.apk` attached. The landing
+  page's download button always points at `releases/latest/download/dang.apk`.
+  The Bazaar build `build/release/dang-bazaar-X.Y.Z.apk` (`-Pstore=bazaar`: adds «امتیاز در
+  بازار»), which is uploaded to Cafe Bazaar by hand in the Pishkhan panel.
+  Use `--skip-tests` when the tests were just run.
 - The signing key is created on the first run in `~/.config/dong/`
   (override with `DONG_SIGNING=/path/to/signing.properties`). **Back it up**:
   without it, later versions cannot update installed copies.

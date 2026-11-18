@@ -93,8 +93,8 @@ links to them.
 ### UX (from 0.4)
 - **Ask how the building charges, then hide the engine.** Iranian buildings either take a fixed
   monthly amount (bills paid from the pot) or split the actual bills. The wizard asks this in
-  plain words and sets up everything else. The engine (formulas, bases, funds) is still there,
-  in advanced mode.
+  plain words and sets up everything else. The engine (formulas, bases, funds) is still there
+  (the UI for it was in advanced mode until 0.6.0).
 - **Simple mode never changes data**, it only hides controls. Old buildings keep everything.
   (0.6.0: simple mode is now the only mode; the engine keeps everything for old data and the demo.)
 - **Feedback must reach the developer from anyone** (0.6.0): the share sheet only worked for
@@ -110,8 +110,9 @@ links to them.
   people or equally).
 - **▲▼ buttons instead of drag-and-drop** for ordering: drag needs a long press and steady hands,
   which older users find hard.
-- **Feedback is built in** («نظر» on every screen: screenshot + three guided questions via any
-  messenger; SUS after 5 days) because testers will not write reports on their own.
+- **Feedback is built in** because testers will not write reports on their own. 0.4: «نظر» on
+  every screen (screenshot + guided questions via any messenger) and a SUS survey; 0.6.0
+  replaced both with «بیشتر ← نظر یا گزارش مشکل» by email (see above).
 - **The demo is a real-looking year, not two months** (0.4.4): people judge an app by its
   reports and debts screens, which are empty without history. The name is short so that it is
   obvious which building to delete afterwards. The brief's two-month reference scenario is kept
@@ -162,19 +163,23 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (143 tests at 0.4.4; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (153 tests at 0.6.1; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then
   `scripts/release.sh patch --skip-tests` (or `minor`). It builds the signed APK, writes
-  `site/release.json`, tags, creates the GitHub Release with `dang.apk` and `dang-X.Y.Z.apk`,
-  and Pages redeploys. Installed apps see the update within an hour (or on next start).
+  `site/release.json`, tags, creates the GitHub Release with `dang.apk`, `dang-X.Y.Z.apk` and
+  `dang-bazaar-X.Y.Z.apk`, and Pages redeploys. Upload the Bazaar APK in Pishkhan by hand (Chrome
+  extension); the landing page links the Bazaar listing. Installed apps see the update within an hour (or on next start).
 - **Where things are**: requirements docs/01, domain docs/02, architecture docs/04, test results
   docs/05, limitations and roadmap docs/06, UX history docs/07, docs/09–11, tester kit docs/10
   (appendix) and docs/12.
 - **Next steps** (in order):
-  1. Hand 0.4.x to the testers (docs/12), let them use «نظر» and the survey for a while.
+  1. Keep the testers on the latest release (docs/12); feedback arrives by email and as Bazaar
+     reviews.
   2. Synthesize their feedback as in docs/10 step 4 before building anything new.
   3. Open suggestions: short "what is this page?" help on Expenses, Months and Meters; an
      «برگرداندن» (undo) snackbar after saving a payment or expense (docs/09).
-  4. Roadmap items in docs/06 (store listing, receipt photos, reminders, Drive read-only view).
+  4. Next release: show the name as «دُنگ» (docs/08), and retake the landing page screenshots
+     (they still show the 0.3.x demo).
+  5. Roadmap items in docs/06 (receipt photos, reminders, Drive read-only view).
