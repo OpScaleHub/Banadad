@@ -8,6 +8,33 @@
   repository, git and release-download URLs to the new name).
 - Landing page: `https://opscalehub.github.io/Dang/`.
 
+## Planned for the next release: show how the name is pronounced (owner, 2026-11-18)
+
+Testers can't tell how to read «دنگ». Without a vowel mark it can be read *dang* (دَنگ, which
+means dazed) instead of *dong* (دُنگ, a share), which is the meaning the app is named after.
+The fix is to add the *zamma* (ـُ, the small «و» above the first letter) wherever users see
+the name: **دُنگ**. This changes only what users see. The repository, package, technical ids
+and the Latin spelling "Dang" stay as they are (see the table below).
+
+Where the name changes to «دُنگ»:
+
+- the launcher label: `app_name` in `app/src/main/res/values/strings.xml`
+- the in-app name `S.appName` (top bar, welcome screen, shared bill images and exports)
+- the Cafe Bazaar listing title in Pishkhan
+- the landing page `<title>`, `og:title`, `application-name` and the icon's `aria-label` in
+  `site/`
+
+Notes for whoever does it:
+
+- Keep the plain form «دنگ» in the store keywords and in the page text so search still finds
+  the app. Typed searches rarely include vowel marks.
+- The launcher icon is a picture with no letters. One option is a small «دُ» monogram. Try it
+  at launcher size first, because the zamma is tiny and may not be readable there.
+- The Latin "Dang" suggests the *a* reading that the zamma rules out. It is kept because of the
+  2026-10-18 rename and the owner's "don't change references" decision. Revisit it only if the
+  owner asks.
+- Check how the zamma renders on an older device and font (the app uses the system font; the landing page and exports name Vazirmatn).
+
 ## What was renamed and what deliberately was not
 
 | Kind | Occurrences | Decision |
