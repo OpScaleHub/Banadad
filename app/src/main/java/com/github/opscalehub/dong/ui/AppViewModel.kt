@@ -147,6 +147,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _messages.tryEmit(text)
     }
 
+    private var lastLoadFailure = 0L
+
+    /**
+     * A screen could not compute something (a bug, not a user error). Say so, at most once a
+     * minute, instead of leaving an empty or default value unexplained.
+     */
+    fun loadFailed() {
+        val now = System.currentTimeMillis()
+        if (now - lastLoadFailure < 60_000) return
+        lastLoadFailure = now
+        message(S.loadFailed)
+    }
+
     /** Runs a repository action, reporting failures in Persian. [onSuccess] runs on the main thread. */
     fun run(success: String? = null, onSuccess: () -> Unit = {}, block: suspend () -> Unit) {
         viewModelScope.launch {

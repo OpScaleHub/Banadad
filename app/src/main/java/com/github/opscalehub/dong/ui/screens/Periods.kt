@@ -117,6 +117,7 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
     var correction by remember { mutableStateOf<PeriodRepository.CorrectionPreview?>(null) }
     var askReason by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
     // After closing a month: the natural moment for a backup (once a month, with the books final).
     var offerBackup by remember { mutableStateOf(false) }
     val backupNow = rememberBackup(vm)
@@ -151,6 +152,7 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (!finalized) {
                         Button(onClick = { confirmFinalize = true }, enabled = result?.canFinalize == true) { Text(S.finalize) }
+                        OutlinedButton(onClick = { editing = true }) { Text(S.editMonth) }
                     }
                     OutlinedButton(onClick = { exportHtml.launch("statement-${p.name}.html") }) { Text(S.exportStatement) }
                 }
@@ -256,8 +258,26 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
             vm.run(S.done, onSuccess = { correction = null }) { vm.repos.periods.applyCorrection(periodId, reason) }
         }
     }
+    if (editing) {
+        var name by rememberSaveable { mutableStateOf(p.name) }
+        val start = rememberDate(p.startDate, building.calendar)
+        val end = rememberDate(p.endDate, building.calendar)
+        val due = rememberDate(p.dueDate, building.calendar)
+        val ok = name.isNotBlank() && start.value != null && end.value != null && end.value!! >= start.value!! && (due.text.isBlank() || due.value != null)
+        FormDialog(S.editMonth, { editing = false }, {
+            vm.run(S.saved, onSuccess = { editing = false }) {
+                vm.repos.periods.updateDraft(p.copy(name = name, startDate = start.value!!, endDate = end.value!!, dueDate = due.value))
+            }
+        }, canConfirm = ok) {
+            TextInput(S.periodName, name, { name = it })
+            DateInput(S.startDate, start, vm.today)
+            DateInput(S.endDate, end, vm.today)
+            DateInput(S.dueDate, due, vm.today, allowEmpty = true)
+        }
+    }
     if (confirmDelete) {
-        ConfirmDialog(S.deleteDraft, p.name, { confirmDelete = false }, {
+        // Most deletions were meant as edits (testers deleted the month to fix its dates).
+        ConfirmDialog(S.deleteDraft, "${p.name}\n\n${S.editMonthHint}", { confirmDelete = false }, {
             confirmDelete = false
             vm.run(S.done, onSuccess = { nav.popBackStack() }) { vm.repos.periods.deleteDraft(periodId) }
         }, S.delete)

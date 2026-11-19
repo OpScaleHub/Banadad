@@ -101,7 +101,8 @@ fun ExpensesScreen(vm: AppViewModel, nav: NavController) {
                 }
                 items(list.size) { i ->
                     val e = list[i]
-                    val p = paid?.get(e.id) ?: 0
+                    // Unknown until loaded: show no payment status rather than «unpaid».
+                    val p = paid?.get(e.id)
                     SectionCard {
                         ClickRow({ nav.navigate(Routes.expense(e.id)) }) {
                             Column(Modifier.weight(1f)) {
@@ -110,7 +111,7 @@ fun ExpensesScreen(vm: AppViewModel, nav: NavController) {
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(money(e.amountMinor), style = MaterialTheme.typography.titleSmall)
-                                Hint(paymentStatus(e, p), if (e.status == ExpenseStatus.ACTIVE && p < e.amountMinor) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (p != null) Hint(paymentStatus(e, p), if (e.status == ExpenseStatus.ACTIVE && p < e.amountMinor) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -197,7 +198,7 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     }
 
     if (locked && existing != null) {
-        LockedExpense(vm, existing, period, categories, suppliers, funds, units, paid ?: 0, payments.orEmpty(), onPay = { paying = true }, onVoid = { voiding = true })
+        LockedExpense(vm, existing, period, categories, suppliers, funds, units, paid, payments.orEmpty(), onPay = { paying = true }, onVoid = { voiding = true })
         PaySupplierDialog(vm, existing, paying, paid ?: 0, cash, building) { paying = false }
         if (voiding) ReasonDialog(S.voidExpense, S.voidCascadeHint, { voiding = false }) { reason ->
             vm.run(S.done, onSuccess = { voiding = false; nav.popBackStack() }) { vm.repos.expenses.void(existing.id, reason) }
@@ -328,11 +329,13 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
         if (existing != null) {
             item {
                 SectionCard(S.paySupplier) {
-                    KeyValue(S.paid, money(paid ?: 0))
-                    KeyValue(S.outstanding, money(if (existing.status == ExpenseStatus.ACTIVE) existing.amountMinor - (paid ?: 0) else 0), strong = true)
+                    paid?.let { pd ->
+                        KeyValue(S.paid, money(pd))
+                        KeyValue(S.outstanding, money(if (existing.status == ExpenseStatus.ACTIVE) existing.amountMinor - pd else 0), strong = true)
+                    }
                     payments?.filter { it.type == EntryType.SUPPLIER_PAYMENT }?.forEach { Hint("${Fmt.date(it.entryDate, building.calendar)}، ${it.reference}") }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (existing.status == ExpenseStatus.ACTIVE && (paid ?: 0) < existing.amountMinor) OutlinedButton(onClick = { paying = true }) { Text(S.paySupplier) }
+                        if (existing.status == ExpenseStatus.ACTIVE && paid != null && paid!! < existing.amountMinor) OutlinedButton(onClick = { paying = true }) { Text(S.paySupplier) }
                         if (!locked) OutlinedButton(onClick = { voiding = true }) { Text(S.voidExpense) }
                     }
                 }
@@ -522,7 +525,7 @@ private fun LockedExpense(
     vm: AppViewModel, e: ExpenseEntity, period: PeriodEntity?,
     categories: List<com.github.opscalehub.dong.data.db.CategoryEntity>, suppliers: List<SupplierEntity>,
     funds: List<com.github.opscalehub.dong.data.db.FundEntity>, units: List<com.github.opscalehub.dong.data.db.UnitEntity>,
-    paid: Long, payments: List<com.github.opscalehub.dong.data.db.JournalEntryEntity>, onPay: () -> Unit, onVoid: () -> Unit,
+    paid: Long?, payments: List<com.github.opscalehub.dong.data.db.JournalEntryEntity>, onPay: () -> Unit, onVoid: () -> Unit,
 ) {
     val b by vm.building.collectAsState()
     val building = b ?: return
@@ -565,10 +568,13 @@ private fun LockedExpense(
         }
         if (!voided) item {
             SectionCard(S.paySupplier, subtitle = S.paySupplierHint) {
-                KeyValue(S.paid, money(paid))
-                KeyValue(S.outstanding, money(e.amountMinor - paid), strong = true)
+                // Shown only once known: a wrong «outstanding» invites paying the supplier twice.
+                if (paid != null) {
+                    KeyValue(S.paid, money(paid))
+                    KeyValue(S.outstanding, money(e.amountMinor - paid), strong = true)
+                }
                 payments.filter { it.type == EntryType.SUPPLIER_PAYMENT }.forEach { Hint("${Fmt.date(it.entryDate, building.calendar)}، ${it.reference}") }
-                if (paid < e.amountMinor) Button(onClick = onPay, Modifier.fillMaxWidth()) { Text(S.paySupplier) }
+                if (paid != null && paid < e.amountMinor) Button(onClick = onPay, Modifier.fillMaxWidth()) { Text(S.paySupplier) }
                 OutlinedButton(onClick = onVoid, Modifier.fillMaxWidth()) { Text(S.voidExpense) }
             }
         }

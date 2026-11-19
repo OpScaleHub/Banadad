@@ -120,7 +120,7 @@ fun FinanceScreen(vm: AppViewModel, nav: NavController) {
                             e.memo.takeIf { it.isNotBlank() }, e.method.takeIf { it.isNotBlank() }, e.reference.takeIf { it.isNotBlank() }).joinToString("، "))
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(money(amounts?.get(e.id) ?: 0), style = MaterialTheme.typography.titleSmall)
+                        amounts?.get(e.id)?.let { Text(money(it), style = MaterialTheme.typography.titleSmall) }
                         if (e.type in reversible && e.id !in reversed) TextButton(onClick = { reversing = e }) { Text(S.reverse) }
                     }
                 }

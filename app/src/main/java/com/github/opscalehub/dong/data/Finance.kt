@@ -488,12 +488,17 @@ class PeriodRepository(private val r: Repos) {
         last
     }
 
+    /**
+     * Changes an open month's name, dates or due date. The advance charge follows the new start
+     * date (the old one is reversed, a new one posted), so nothing needs deleting and recreating.
+     */
     suspend fun updateDraft(p: PeriodEntity) = r.tx {
         val old = dao.period(p.id) ?: fail(OpError.NOT_FOUND)
         if (old.status != PeriodStatus.DRAFT) fail(OpError.PERIOD_FINALIZED)
         if (p.name.isBlank() || p.endDate < p.startDate) fail(OpError.INVALID_INPUT)
         if (dao.periods(p.buildingId).any { it.id != p.id && p.startDate <= it.endDate && p.endDate >= it.startDate }) fail(OpError.PERIOD_OVERLAP)
         dao.updatePeriod(old.copy(name = p.name.trim(), startDate = p.startDate, endDate = p.endDate, dueDate = p.dueDate))
+        r.journal.audit(p.buildingId, "UPDATE_PERIOD", "period", p.id, "${p.name.trim()}: ${Fmt.date(p.startDate)} تا ${Fmt.date(p.endDate)}")
         postAdvance(p.id)
     }
 
