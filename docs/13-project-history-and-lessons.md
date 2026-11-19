@@ -41,6 +41,7 @@ links to them.
 | 2026-11-18 | 0.8.0 | Testers' first reports: a cancelled advance charge (month deleted and made again, people or rate changed) broke every unit statement and units showed «تسویه»; fixed, with `WorkflowInvariantsTest`. «اصلاح حساب واحد» on the unit screen after the first close, with no default direction. The app now checks its own books (`SelfCheck`: same invariants as the test) on Home and in «نظر یا گزارش مشکل»; a failure shows a card asking for a report. Reports carry the self-check result, counts and recent error codes (no names or amounts) and, only if the manager turns it on, the building's backup file. |
 | 2026-11-18 | 0.8.1 | «ویرایش ماه» for an open month (name, dates, due date; the advance charge follows the start date) so managers stop deleting and re-creating months; the delete dialog points to it. A screen computation that fails now says so (snackbar, at most once a minute) instead of leaving a default; an expense's paid/outstanding and the pay-supplier button wait until the paid amount is known (a wrong «outstanding» invited paying twice). `WorkflowInvariantsTest` also covers a part payment to a supplier and editing the open month. |
 | 2026-11-19 | 0.8.2 | Fuzz testing of the bookkeeping (`WorkflowFuzzTest`, 24k random actions clean) and a 6,000-event monkey run (no crash). Fixed: the next automatic month overlapped a month whose end had been edited, so months stopped being created. After a backup is saved, a clear dialog names the file and offers «فرستادن یک نسخه» (Telegram, Drive) — the old snackbar was missed and a copy on the same phone is lost with it. |
+| 2026-11-19 | 0.9.0 | First-time setup for non-technical managers: text size chosen in the first wizard step; past debts are an explicit yes/no (no silent default); a «مانده‌های اول کار» card on Home until confirmed, and closing the first month shows the balances it locks. A first month made after its usual deadline gives a week from today (a new building was «overdue» on day one). Minimum text sizes raised (body 16sp, hints 14sp). Screen computations moved off the main thread and unit statements read the journal once per report (the year demo froze Home for ~1.5 s). docs/14: usability test protocol with KPIs (task success, SEQ, SUS). |
 
 ## 3. Key decisions and the reasons behind them
 
@@ -195,7 +196,7 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (164 tests after 0.8.2; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (165 tests after 0.9.0; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then

@@ -355,11 +355,20 @@ class FinanceRepository(private val r: Repos) {
     }
 
     /** Statement of a unit's receivable over [from]..[to] (inclusive epoch days; null = open). */
-    suspend fun unitStatement(buildingId: String, unitId: String, from: Long? = null, to: Long? = null): UnitStatement {
+    suspend fun unitStatement(buildingId: String, unitId: String, from: Long? = null, to: Long? = null): UnitStatement =
+        unitStatements(buildingId, listOf(unitId), from, to).getValue(unitId)
+
+    /** Statements of several units, reading the journal once (a report used to read it once per unit). */
+    suspend fun unitStatements(buildingId: String, unitIds: Collection<String>, from: Long? = null, to: Long? = null): Map<String, UnitStatement> {
         val entries = fin.entries(buildingId).associateBy { it.id }
         val waterCats = r.db.expenseDao().categories(buildingId).filter { it.isWater }.map { it.id }.toSet()
-        val lines = fin.lines(buildingId).filter { it.account == AccountKind.RECEIVABLE && it.unitId == unitId }
-            .map { it to entries.getValue(it.entryId) }
+        val byUnit = fin.lines(buildingId).filter { it.account == AccountKind.RECEIVABLE && it.unitId != null }.groupBy { it.unitId!! }
+        return unitIds.associateWith { statementOf(it, byUnit[it].orEmpty(), entries, waterCats, from, to) }
+    }
+
+    private fun statementOf(unitId: String, unitLines: List<com.github.opscalehub.dong.data.db.JournalLineEntity>, entries: Map<String, JournalEntryEntity>,
+                            waterCats: Set<String>, from: Long?, to: Long?): UnitStatement {
+        val lines = unitLines.map { it to entries.getValue(it.entryId) }
             .sortedWith(compareBy({ it.second.entryDate }, { it.second.createdAt }))
         // A reversal counts where the entry it undoes counts: a cancelled advance charge (month deleted,
         // occupancy changed) lowers charges, a replaced opening lowers the opening. Anything else is a correction.
@@ -408,8 +417,13 @@ class PeriodRepository(private val r: Repos) {
      * Payment deadline of a new month. A fixed monthly charge is paid in advance (common in Iran):
      * by the 10th of the month itself. Split bills are known only after the month: 10 days after it.
      */
-    suspend fun defaultDue(buildingId: String, start: Long, end: Long): Long =
-        if (prepaid(buildingId)) minOf(start + PREPAID_DUE_DAYS - 1, end) else end + 10
+    suspend fun defaultDue(buildingId: String, start: Long, end: Long): Long {
+        val due = if (prepaid(buildingId)) minOf(start + PREPAID_DUE_DAYS - 1, end) else end + 10
+        // A month made after its usual deadline (the first month of a building set up mid-month)
+        // gives units a week from today, not a deadline that has already passed.
+        val today = r.clock.today()
+        return if (due < today && today <= end) maxOf(due, minOf(today + 7, end)) else due
+    }
 
     /** Active advance-charge entries of a draft month (normally one). */
     private suspend fun advanceEntries(p: PeriodEntity): List<JournalEntryEntity> {

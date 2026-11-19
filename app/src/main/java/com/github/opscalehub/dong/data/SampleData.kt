@@ -96,7 +96,7 @@ object SampleData {
         // due by the 10th of the same month. The brief's reference scenario ([history] = 0) keeps the
         // workbook's numbers: everything split after the month and due 10 days after it.
         val prepaid = history > 0
-        fun due(m: Month): Long? = if (prepaid) null else m.end + 10
+        fun due(m: Month): Long = if (prepaid) m.start + PREPAID_DUE_DAYS - 1 else m.end + 10
 
         // Parking (synthetic): ownership vs. use differ on purpose.
         val spaces = (1..8).associateWith { n -> r.buildings.saveSpace(ParkingSpaceEntity(newId(), b, "P$n", NOTE)) }

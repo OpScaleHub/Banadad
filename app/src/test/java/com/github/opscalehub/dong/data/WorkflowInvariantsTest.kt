@@ -133,4 +133,17 @@ class WorkflowInvariantsTest {
             assertEquals("history=$history", emptyList<String>(), SelfCheck.run(r, b).problems)
         }
     }
+
+    @Test fun `a building set up after the 10th is not overdue on its first day`() = runBlocking {
+        clock.day = Jalali.toEpochDay(1405, 8, 28)
+        val drafts = listOf(BuildingRepository.UnitDraft("۱", 1, 6_000, 2))
+        val b = r.buildings.setup("ساختمان", "", true, 1000, drafts, 0, 0, BuildingRepository.ChargePlan.Fixed(BuildingRepository.FixedBasis.PER_UNIT, 5_000_000))
+        val p = db.periodDao().periods(b).single()
+        assertEquals(p.endDate, p.dueDate) // a week from the 28th is past the month's end: due on its last day
+        clock.day = Jalali.toEpochDay(1405, 8, 15)
+        val b2 = r.buildings.setup("ساختمان ۲", "", true, 1000, drafts, 0, 0, BuildingRepository.ChargePlan.Fixed(BuildingRepository.FixedBasis.PER_UNIT, 5_000_000))
+        assertEquals(clock.day + 7, db.periodDao().periods(b2).single().dueDate)
+        // Months after it keep the usual 10th.
+        assertEquals(Jalali.toEpochDay(1405, 9, 10), r.periods.defaultDue(b2, Jalali.toEpochDay(1405, 9, 1), Jalali.toEpochDay(1405, 9, 30)))
+    }
 }

@@ -47,7 +47,7 @@ class BillRepository(private val r: Repos) {
         val b = r.db.buildingDao().building(buildingId) ?: fail(OpError.NOT_FOUND)
         val unit = d.units.firstOrNull { it.id == unitId } ?: fail(OpError.NOT_FOUND)
         val p = periodId?.let { id -> d.periods.firstOrNull { it.id == id } ?: fail(OpError.NOT_FOUND) }
-        val total = r.finance.unitStatement(buildingId, unitId)
+        val total = d.statements[unitId] ?: r.finance.unitStatement(buildingId, unitId)
         val since = p?.let { r.finance.unitStatement(buildingId, unitId, it.startDate, null) }
         val lines = p?.let { Insights.unitComposition(d, unitId, it.id).map { (c, v) -> d.categoryName(c) to v } }.orEmpty()
         val month = lines.sumOf { it.second }

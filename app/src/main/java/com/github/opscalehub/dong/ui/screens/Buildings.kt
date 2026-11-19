@@ -128,7 +128,8 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
     val weights = remember { mutableStateListOf<Long>() }
     val cash = remember { NumberFieldState("0", { mf.parse(it) }, grouped = true, unit = mf.unitName) }
     // Past balances per unit, keyed by label so they survive going back and reordering.
-    var pastBalances by rememberSaveable { mutableStateOf(false) }
+    // An explicit answer, not a switch that defaults to off: a skipped past debt shows up nowhere.
+    var pastBalances by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val pastAmounts = remember { androidx.compose.runtime.mutableStateMapOf<String, NumberFieldState>() }
     val pastOwes = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
     fun pastField(label: String) = pastAmounts.getOrPut(label.trim()) { NumberFieldState("0", { mf.parse(it) }, grouped = true, unit = mf.unitName) }
@@ -161,6 +162,15 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
                 0 -> ScreenList {
                     item { TextInput(S.buildingName, name, { name = it }, supporting = S.buildingNameHint) }
                     item { TextInput(S.addressOptional, address, { address = it }) }
+                    // Asked first, not hidden in Settings: older managers need bigger text from the start.
+                    item {
+                        val scale by vm.ui.textScale.collectAsState()
+                        SectionCard(S.textSize) {
+                            SingleChoice(com.github.opscalehub.dong.ui.UiPrefs.SCALES, com.github.opscalehub.dong.ui.UiPrefs.SCALES.minBy { kotlin.math.abs(it - scale) },
+                                { vm.ui.setTextScale(it) }) { S.textSizes[com.github.opscalehub.dong.ui.UiPrefs.SCALES.indexOf(it)] }
+                            Hint(S.textSizeLater)
+                        }
+                    }
                 }
                 1 -> ScreenList {
                     item {
@@ -252,8 +262,10 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
                 else -> ScreenList {
                     item { Hint(S.openingCashHint) }
                     item { NumberInput(S.openingCashSimple, cash) }
-                    item { com.github.opscalehub.dong.ui.SwitchRow(S.openingUnitsQuestion, pastBalances, { pastBalances = it }) }
-                    if (pastBalances) {
+                    item { Text(S.openingUnitsQuestion, style = MaterialTheme.typography.titleMedium) }
+                    item { ChoiceCard(S.openingNone, S.openingNoneHint, pastBalances == false) { pastBalances = false } }
+                    item { ChoiceCard(S.openingSome, S.openingSomeHint, pastBalances == true) { pastBalances = true } }
+                    if (pastBalances == true) {
                         item { Hint(S.openingUnitsHint) }
                         items(rows.size) { i ->
                             val label = rows[i].label.trim()
@@ -280,10 +292,10 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
                     vm.run(S.saved, onSuccess = onDone) {
                         val plan = if (fixed == true) plan() else BuildingRepository.ChargePlan.SplitBills
                         val id = vm.repos.buildings.setup(name, address, true, 1000, rows.map { it.toDraft() }, cash.value ?: 0, 0, plan,
-                            BuildingRepository.SharedBills(water, gas), if (pastBalances) pastSigned().map { it!! } else emptyList())
+                            BuildingRepository.SharedBills(water, gas), if (pastBalances == true) pastSigned().map { it!! } else emptyList())
                         vm.select(id)
                     }
-                }, enabled = cash.valid && (!pastBalances || pastSigned().all { it != null })) { Text(S.finish) }
+                }, enabled = cash.valid && pastBalances != null && (pastBalances == false || pastSigned().all { it != null })) { Text(S.finish) }
             }
         }
     }

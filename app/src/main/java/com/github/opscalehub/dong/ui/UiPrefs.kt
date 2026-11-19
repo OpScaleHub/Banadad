@@ -28,7 +28,16 @@ class UiPrefs(context: Context) {
     val backupSnooze: StateFlow<Long> = _backupSnooze.asStateFlow()
     fun snoozeBackup(until: Long) { p.edit().putLong(BACKUP_SNOOZE, until).apply(); _backupSnooze.value = until }
 
+    /** Buildings whose starting balances the manager has looked at and confirmed on this phone. */
+    private val _openingSeen = MutableStateFlow(p.getStringSet(OPENING_SEEN, emptySet()).orEmpty().toSet())
+    val openingSeen: StateFlow<Set<String>> = _openingSeen.asStateFlow()
+    fun confirmOpening(buildingId: String) {
+        val v = _openingSeen.value + buildingId
+        p.edit().putStringSet(OPENING_SEEN, v).apply(); _openingSeen.value = v
+    }
+
     companion object {
+        private const val OPENING_SEEN = "openingSeen"
         private const val LAST_BACKUP = "lastBackupDay"
         private const val BACKUP_SNOOZE = "backupSnoozeDay"
         /** Days after which the home screen asks for a new backup. */
