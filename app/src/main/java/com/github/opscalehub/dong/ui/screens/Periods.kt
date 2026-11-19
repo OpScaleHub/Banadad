@@ -206,7 +206,7 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
             item {
                 SectionCard(S.perUnitTotals) {
                     val totals = r.unitTotals
-                    units.forEach { u -> KeyValue("${S.unit} ${u.label}", money(totals[u.id] ?: 0)) }
+                    units.forEach { u -> KeyValue("${S.unit} ${Fmt.ltr(u.label)}", money(totals[u.id] ?: 0)) }
                 }
             }
             if (r.water.meters.isNotEmpty()) {

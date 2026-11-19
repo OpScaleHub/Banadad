@@ -267,7 +267,7 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                 }
                 if (weighted) {
                     com.github.opscalehub.dong.ui.MultiplierEditor(
-                        active.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${it.label} (${S.floor} ${Fmt.number(it.floor.toLong())})", it.floor) },
+                        active.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${Fmt.ltr(it.label)} (${S.floor} ${Fmt.number(it.floor.toLong())})", it.floor) },
                         active.map { currentWeights!![it.id] ?: 1L },
                     ) { w -> policy.reset(AllocationPolicy.single(Basis.Weighted(active.map { it.id }.zip(w).toMap()))); policyTouched = true }
                 }
@@ -294,7 +294,7 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                     !pv.valid -> pv.issues.filter { it.blocking }.distinctBy { it.copy(sourceId = null) }
                         .forEach { Hint(Fa.issue(it.copy(sourceId = null), vm.names()), MaterialTheme.colorScheme.error) }
                     else -> com.github.opscalehub.dong.ui.charts.HBars(
-                        units.filter { it.id in pv.shares }.map { u -> com.github.opscalehub.dong.ui.charts.HBar("${S.unit} ${u.label}", pv.shares.getValue(u.id), money(pv.shares.getValue(u.id))) },
+                        units.filter { it.id in pv.shares }.map { u -> com.github.opscalehub.dong.ui.charts.HBar("${S.unit} ${Fmt.ltr(u.label)}", pv.shares.getValue(u.id), money(pv.shares.getValue(u.id))) },
                     )
                 }
                 if (pv != null && pv.fundBorne != 0L && pol?.fundOnly != true) Hint("${S.fundBorne}: ${money(pv.fundBorne)}")
@@ -559,7 +559,7 @@ private fun LockedExpense(
                 else com.github.opscalehub.dong.ui.charts.HBars(
                     units.filter { u -> lines.any { it.unitId == u.id } }.map { u ->
                         val v = lines.filter { it.unitId == u.id }.sumOf { it.amount }
-                        com.github.opscalehub.dong.ui.charts.HBar("${S.unit} ${u.label}", v, money(v))
+                        com.github.opscalehub.dong.ui.charts.HBar("${S.unit} ${Fmt.ltr(u.label)}", v, money(v))
                     },
                 )
                 val fromFund = e.amountMinor - lines.sumOf { it.amount }

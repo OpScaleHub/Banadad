@@ -571,6 +571,7 @@ object S {
     const val showToman = "تومان"
     const val showRial = "ریال"
     const val zeros = "۰۰۰"
+    const val zerosHint = "سه صفر به عدد اضافه کن"
     const val more = "بیشتر"
     const val buildingsAndSwitch = "ساختمان‌ها"
     const val metersAndTariffs = "کنتورهای آب"

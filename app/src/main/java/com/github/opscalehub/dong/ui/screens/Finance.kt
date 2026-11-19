@@ -99,7 +99,7 @@ fun FinanceScreen(vm: AppViewModel, nav: NavController) {
             SectionCard(S.unitBalances, subtitle = S.signConvention) {
                 units.forEach { u ->
                     ClickRow({ nav.navigate(Routes.unit(u.id)) }) {
-                        Text("${S.unit} ${u.label}", Modifier.weight(1f))
+                        Text("${S.unit} ${Fmt.ltr(u.label)}", Modifier.weight(1f))
                         balances?.units?.get(u.id)?.let { BalanceText(it, digits) }
                     }
                 }
@@ -180,7 +180,7 @@ fun PaymentSavedDialog(vm: AppViewModel, entryId: String, unitLabel: String, amo
     androidx.compose.material3.AlertDialog(
         onDismissRequest = close,
         title = { Text(S.paymentSaved) },
-        text = { Text(S.paymentSavedBody.format(mf.withUnit(amount), unitLabel)) },
+        text = { Text(S.paymentSavedBody.format(mf.withUnit(amount), Fmt.ltr(unitLabel))) },
         confirmButton = {
             Button(onClick = {
                 vm.run(onSuccess = close) { com.github.opscalehub.dong.share.ReceiptShare.share(context, vm.repos.bills.receipt(entryId), mf) }
@@ -304,6 +304,6 @@ internal fun OpeningDialog(vm: AppViewModel, b: String, units: List<UnitEntity>,
         funds.filter { it.kind != FundKind.OPERATING && (cur.funds[it.id] ?: 0) != 0L }
             .forEach { f -> NumberInput("${S.openingReserve}: ${f.name}", others.getValue(f.id)) }
         Text(S.openingUnits, style = MaterialTheme.typography.labelLarge)
-        units.forEach { u -> OpeningUnitInput("${S.unit} ${u.label}", unitFields.getValue(u.id), owes[u.id] ?: true) { owes[u.id] = it } }
+        units.forEach { u -> OpeningUnitInput("${S.unit} ${Fmt.ltr(u.label)}", unitFields.getValue(u.id), owes[u.id] ?: true) { owes[u.id] = it } }
     }
 }

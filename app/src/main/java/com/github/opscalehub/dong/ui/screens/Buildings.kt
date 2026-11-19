@@ -242,13 +242,13 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
                             if (basis == BuildingRepository.FixedBasis.PER_UNIT) {
                                 com.github.opscalehub.dong.ui.SwitchRow(S.unitsDiffer, differ, { differ = it }, supporting = S.unitsDifferHint)
                                 if (differ) com.github.opscalehub.dong.ui.MultiplierEditor(
-                                    rows.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${it.label}", Fmt.parseLong(it.floor)?.toInt() ?: 1) },
+                                    rows.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${Fmt.ltr(it.label)}", Fmt.parseLong(it.floor)?.toInt() ?: 1) },
                                     rows.indices.map { weights.getOrElse(it) { 1L } },
                                 ) { w -> weights.clear(); weights.addAll(w) }
                             }
                             val p = plan()
                             if (p.perM2 > 0 && !areasKnown) Hint(S.needAreas, MaterialTheme.colorScheme.error)
-                            else if (rows.isNotEmpty() && p.perUnit + p.perPerson + p.perM2 > 0) Text(S.exampleShare.format(rows[0].label, mf.withUnit(exampleFor(0))),
+                            else if (rows.isNotEmpty() && p.perUnit + p.perPerson + p.perM2 > 0) Text(S.exampleShare.format(Fmt.ltr(rows[0].label), mf.withUnit(exampleFor(0))),
                                 style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
                             Hint(S.chargeFixedNote)
                             if (water == BuildingRepository.WaterSetup.METERED) Hint(S.chargeMeteredNote)
@@ -269,7 +269,7 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
                         item { Hint(S.openingUnitsHint) }
                         items(rows.size) { i ->
                             val label = rows[i].label.trim()
-                            SectionCard { OpeningUnitInput("${S.unit} $label", pastField(label), pastOwes[label] ?: true) { pastOwes[label] = it } }
+                            SectionCard { OpeningUnitInput("${S.unit} ${Fmt.ltr(label)}", pastField(label), pastOwes[label] ?: true) { pastOwes[label] = it } }
                         }
                         item {
                             val v = pastSigned().filterNotNull()
