@@ -21,6 +21,12 @@ object Fmt {
     fun signed(positive: Boolean, formattedMagnitude: String): String =
         "\u2066" + (if (positive) "+" else "−") + formattedMagnitude.removePrefix("\u2066").removeSuffix("\u2069") + "\u2069"
 
+    /**
+     * A unit label inside Persian text, isolated left-to-right. Without it "1-2" (floor 1, unit 2) is
+     * drawn as "2-1" next to Persian words, so a manager could pick the wrong unit.
+     */
+    fun ltr(s: String): String = if (s.any { it.isDigit() }) "\u2066$s\u2069" else s
+
     fun digits(s: String): String = buildString(s.length) {
         for (c in s) append(if (c in '0'..'9') FA_DIGITS[c - '0'] else c)
     }

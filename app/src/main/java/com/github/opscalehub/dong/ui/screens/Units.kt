@@ -88,7 +88,7 @@ private enum class UnitFilter { ALL, OWES, SETTLED }
 
 /** The reminder message for a unit: what it owes, the month's deadline if not yet passed, and where to pay. */
 fun reminderFor(b: com.github.opscalehub.dong.data.db.BuildingEntity, unit: String, owed: String, period: com.github.opscalehub.dong.data.db.PeriodEntity?): String =
-    com.github.opscalehub.dong.share.PayTo.reminder(unit, b.name, owed, period?.dueDate?.let { Fmt.date(it, b.calendar) }, b.payAccount, b.payHolder)
+    com.github.opscalehub.dong.share.PayTo.reminder(Fmt.ltr(unit), b.name, owed, period?.dueDate?.let { Fmt.date(it, b.calendar) }, b.payAccount, b.payHolder)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -182,7 +182,7 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
                         UnitChip(u.label)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("${S.unit} ${u.label}", style = MaterialTheme.typography.titleMedium)
+                            Text("${S.unit} ${Fmt.ltr(u.label)}", style = MaterialTheme.typography.titleMedium)
                             Hint("${S.floor} ${Fmt.number(u.floor.toLong())}")
                         }
                         MoveButtons(if (i > 0) ({ move(i - 1) }) else null, if (i < units.size - 1) ({ move(i + 1) }) else null)
@@ -196,8 +196,8 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
                         UnitChip(u.label, if (u.active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("${S.unit} ${u.label}" + if (!u.active) " (${S.inactive})" else "", style = MaterialTheme.typography.titleMedium)
-                            Hint("${S.floor} ${Fmt.number(u.floor.toLong())}، ${Fa.quantity(QuantityKind.AREA_CENTI_M2, u.areaCentiM2)}، ${Fmt.number((current[u.id] ?: 0).toLong())} ${S.people}" +
+                            Text("${S.unit} ${Fmt.ltr(u.label)}" + if (!u.active) " (${S.inactive})" else "", style = MaterialTheme.typography.titleMedium)
+                            Hint("${S.floor} ${Fmt.number(u.floor.toLong())}، ${if (u.areaCentiM2 > 0) Fa.quantity(QuantityKind.AREA_CENTI_M2, u.areaCentiM2) + "، " else ""}${Fmt.number((current[u.id] ?: 0).toLong())} ${S.people}" +
                                 parkingText(assignments.count { it.unitId == u.id && it.effectiveTo == null }))
                         }
                         if (report != null) BalanceText(balances[u.id] ?: 0)
@@ -299,8 +299,8 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
                     UnitChip(unit.label)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("${S.unit} ${unit.label}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Hint("${S.floor} ${Fmt.number(unit.floor.toLong())}، ${Fa.quantity(QuantityKind.AREA_CENTI_M2, unit.areaCentiM2)}، ${Fmt.number((currentOccupants(occ, vm.today)[unit.id] ?: 0).toLong())} ${S.people}" +
+                        Text("${S.unit} ${Fmt.ltr(unit.label)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Hint("${S.floor} ${Fmt.number(unit.floor.toLong())}، ${if (unit.areaCentiM2 > 0) Fa.quantity(QuantityKind.AREA_CENTI_M2, unit.areaCentiM2) + "، " else ""}${Fmt.number((currentOccupants(occ, vm.today)[unit.id] ?: 0).toLong())} ${S.people}" +
                             parkingText(assignments.count { it.unitId == unit.id && it.effectiveTo == null }))
                     }
                 }
@@ -484,7 +484,7 @@ private fun UnitOpeningDialog(vm: AppViewModel, b: String, unit: UnitEntity, clo
     val cur = current ?: return
     val amount = rememberMoney(kotlin.math.abs(cur))
     var owes by remember { mutableStateOf(cur >= 0) }
-    FormDialog("${S.unitOpening} — ${S.unit} ${unit.label}", close, {
+    FormDialog("${S.unitOpening} — ${S.unit} ${Fmt.ltr(unit.label)}", close, {
         vm.run(S.saved, onSuccess = close) { vm.repos.finance.setUnitOpening(b, unit.id, signedOpening(amount, owes)!!) }
     }, canConfirm = signedOpening(amount, owes) != null) {
         Hint(S.unitOpeningHint)

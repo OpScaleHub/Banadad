@@ -1,5 +1,8 @@
 package com.github.opscalehub.dong.ui
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
@@ -234,7 +237,11 @@ fun NumberInput(label: String, state: NumberFieldState, modifier: Modifier = Mod
         visualTransformation = if (state.grouped) GroupingTransformation else PersianDigitsTransformation,
         suffix = state.unit?.let { { Text(it, style = MaterialTheme.typography.bodySmall) } },
         trailingIcon = if (state.grouped) ({
-            TextButton(onClick = { state.text = Fmt.latin(state.text).ifBlank { "1" } + "000" }) { Text(S.zeros) }
+            // A tonal button, not plain text: next to «تومان» a bare «۰۰۰» read as part of the unit
+            // («هزار تومان»), and testers typed 1500 for 1,500,000.
+            FilledTonalButton(onClick = { state.text = Fmt.latin(state.text).ifBlank { "1" } + "000" },
+                Modifier.padding(end = 8.dp).semantics { contentDescription = S.zerosHint },
+                contentPadding = PaddingValues(horizontal = 10.dp)) { Text("+" + S.zeros) }
         }) else null,
     )
 }

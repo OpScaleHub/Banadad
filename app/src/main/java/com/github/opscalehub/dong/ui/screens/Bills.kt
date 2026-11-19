@@ -104,7 +104,7 @@ fun SendBillsScreen(vm: AppViewModel, periodId: String, onAddPayment: () -> Unit
                     UnitChip(u.label, if (last != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("${S.unit} ${u.label}", style = MaterialTheme.typography.titleMedium)
+                        Text("${S.unit} ${Fmt.ltr(u.label)}", style = MaterialTheme.typography.titleMedium)
                         Hint("${S.billThisMonth}: ${money(charge)}")
                         Hint(if (last == null) S.notSent else "${S.sentOn} ${shareDate(last.at, building)}" +
                             if (mine.size > 1) " (${Fmt.number(mine.size.toLong())} ${S.times})" else "",

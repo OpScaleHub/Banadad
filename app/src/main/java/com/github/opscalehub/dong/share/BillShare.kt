@@ -1,5 +1,6 @@
 package com.github.opscalehub.dong.share
 
+import com.github.opscalehub.dong.i18n.Fmt
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -83,7 +84,7 @@ object BillShare {
 
     fun blocks(bill: Bill, money: MoneyFormat): List<Block> = buildList {
         add(Block.Title(S.billTitle + (bill.period?.let { " — $it" } ?: "")))
-        add(Block.Subtitle("${bill.building}، ${S.unit} ${bill.unit}"))
+        add(Block.Subtitle("${bill.building}، ${S.unit} ${Fmt.ltr(bill.unit)}"))
         if (bill.lines.isNotEmpty()) {
             add(Block.Section(S.billThisMonth))
             bill.lines.forEach { (k, v) -> add(Block.Row(k, money.format(v))) }
@@ -164,7 +165,7 @@ object BillShare {
 object ReceiptShare {
     fun blocks(r: Receipt, money: MoneyFormat): List<Block> = buildList {
         add(Block.Title(S.receiptTitle))
-        add(Block.Subtitle("${r.building}، ${S.unit} ${r.unit}"))
+        add(Block.Subtitle("${r.building}، ${S.unit} ${Fmt.ltr(r.unit)}"))
         add(Block.Big(S.receiptAmount, money.withUnit(r.amount), ImageDoc.TEAL))
         add(Block.Row(S.receiptDate, r.date))
         if (r.method.isNotBlank()) add(Block.Row(S.receiptMethod, r.method))
@@ -180,7 +181,7 @@ object ReceiptShare {
 
     fun share(context: Context, r: Receipt, money: MoneyFormat) =
         ImageDoc.share(context, ImageDoc.render(context, blocks(r, money)), "receipt-${ImageDoc.asciiName(r.unit, "unit")}",
-            S.receiptText.format(money.withUnit(r.amount), r.unit, r.building))
+            S.receiptText.format(money.withUnit(r.amount), Fmt.ltr(r.unit), r.building))
 }
 
 /** The month at a glance for the building's group or channel: totals, expenses, optionally units. */
@@ -209,7 +210,7 @@ object SummaryShare {
             add(Block.Section(if (showDebts) S.summaryUnitsWithDebt else S.summaryUnits))
             s.units.forEach { (label, charge, balance) ->
                 val v = money.format(charge) + if (showDebts && balance > 0) "   (${S.owes} ${money.format(balance)})" else ""
-                add(Block.Row("${S.unit} $label", v))
+                add(Block.Row("${S.unit} ${Fmt.ltr(label)}", v))
             }
             add(Block.Rule)
         }

@@ -176,7 +176,7 @@ fun ReportsScreen(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") nav: NavContro
                     HBars(
                         d.units.filter { it.id in w.unitLiters }.map { u ->
                             val l = w.unitLiters[u.id]
-                            HBar("${S.unit} ${u.label}", l ?: 0, l?.let { Fmt.cubicMeters(it) } ?: S.none)
+                            HBar("${S.unit} ${Fmt.ltr(u.label)}", l ?: 0, l?.let { Fmt.cubicMeters(it) } ?: S.none)
                         },
                         reference = w.averageLiters, referenceLabel = "${S.buildingAverage}: ${Fmt.cubicMeters(w.averageLiters)}",
                     )
