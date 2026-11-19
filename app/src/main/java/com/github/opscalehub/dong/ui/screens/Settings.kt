@@ -69,6 +69,7 @@ fun SettingsScreen(vm: AppViewModel) {
     val b by vm.building.collectAsState()
     val building = b ?: return
     val backupNow = rememberBackup(vm)
+    val sendBackup = rememberSendBackup(vm)
     ScreenList {
         item {
             val scale by vm.ui.textScale.collectAsState()
@@ -85,6 +86,8 @@ fun SettingsScreen(vm: AppViewModel) {
                 val last by vm.ui.lastBackup.collectAsState()
                 KeyValue(S.backupLast, if (last == 0L) S.backupNone else Fmt.date(last, building.calendar))
                 Button(onClick = backupNow, Modifier.fillMaxWidth()) { Text(S.backupNow) }
+                OutlinedButton(onClick = sendBackup, Modifier.fillMaxWidth()) { Text(S.backupSendDirect) }
+                Text(S.backupSendDirectHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 RestoreButton(vm)
             }
         }
@@ -153,6 +156,41 @@ fun rememberBackup(vm: AppViewModel, onDone: () -> Unit = {}): () -> Unit {
         }, S.backupSendCopy, dismissText = S.backupKeepHere)
     }
     return { launcher.launch("dang-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json") }
+}
+
+/**
+ * Sends a backup straight to another app (Telegram, email, Drive) without saving it on the phone
+ * first. Saving goes through the system file picker and the phone's media storage; when that is
+ * stuck (seen on a real phone: a broken video kept the media service busy for days) the picker
+ * never returns and only an empty file is left. This path needs neither.
+ */
+@Composable
+fun rememberSendBackup(vm: AppViewModel): () -> Unit {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    return {
+        scope.launch {
+            try {
+                val text = vm.backup.export()
+                val name = "dang-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json"
+                val file = withContext(Dispatchers.IO) {
+                    java.io.File(java.io.File(context.cacheDir, "shared").apply { mkdirs() }, name).apply { writeText(text, Charsets.UTF_8) }
+                }
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", file)
+                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    clipData = android.content.ClipData.newRawUri(name, uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(android.content.Intent.createChooser(send, S.backupSendDirect).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                // The file left the app; where it goes is the manager's choice, so it counts as a backup.
+                vm.ui.backedUp(vm.today)
+            } catch (e: Exception) {
+                vm.message(S.unexpectedError)
+            }
+        }
+    }
 }
 
 /** "Restore from backup" button with file picker, bounded read and the preview/confirm dialog. */
