@@ -371,6 +371,8 @@ object S {
     const val backupFile = "پشتیبان"
     const val backupSendCopy = "فرستادن یک نسخه"
     const val backupKeepHere = "بعداً"
+    const val backupSendDirect = "فرستادن فایل پشتیبان (تلگرام، ایمیل، درایو)"
+    const val backupSendDirectHint = "فایل مستقیم برای جای امن دیگری فرستاده می‌شود، بدون ذخیره روی گوشی. اگر ذخیره روی گوشی کار نکرد هم از همین راه استفاده کنید."
     const val backupNote = "داده‌ها فقط روی این گوشی هستند و در پشتیبان خودکار اندروید گنجانده نمی‌شوند. به‌طور منظم فایل پشتیبان بگیرید و جای امنی نگه دارید؛ فایل شامل اطلاعات مالی و یادداشت‌های واحدهاست."
     const val restorePreview = "پیش‌نمایش بازیابی"
     const val restoreInvalid = "فایل نامعتبر است و هیچ تغییری اعمال نشد:"
