@@ -241,7 +241,14 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
         }
     }
     if (confirmFinalize) {
-        ConfirmDialog(S.finalize, S.finalizeConfirm, { confirmFinalize = false }, {
+        // The first close locks the starting balances: show them once more.
+        val first = periods.none { it.status == PeriodStatus.FINALIZED }
+        val opening by derived(vm, building.id, first) { if (first) vm.repos.finance.opening(building.id) to 0L else null }
+        val warn = opening?.let { (o, _) ->
+            val mf = com.github.opscalehub.dong.i18n.MoneyFormat.of(building)
+            S.firstCloseWarn.format(mf.withUnit(o.cash.values.sum()), mf.withUnit(o.units.values.filter { it > 0 }.sum()), mf.withUnit(-o.units.values.filter { it < 0 }.sum()))
+        } ?: ""
+        ConfirmDialog(S.finalize, S.finalizeConfirm + warn, { confirmFinalize = false }, {
             confirmFinalize = false
             vm.run(S.finalizedOk, onSuccess = { offerBackup = vm.ui.lastBackup.value != vm.today }) { vm.repos.periods.finalize(periodId) }
         }, S.finalize)

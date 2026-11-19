@@ -116,7 +116,7 @@ Requirements to build: JDK 17, Android SDK 35. Android 8.0 (API 26) or newer to 
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                      # 164 JVM + Robolectric tests
+./gradlew testDebugUnitTest                      # 165 JVM + Robolectric tests
 ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   # UI end-to-end (wipes app data!)
 python workbook/verify_workbook.py               # needs openpyxl + formulas
 ```
@@ -153,6 +153,7 @@ docs/          requirements, domain model, plan, architecture, tests, roadmap
 11. [0.4 "simple by default" design, 0.4.1–0.4.4](docs/11-v0.4-simple-design.md)
 12. [Message for testers](docs/12-tester-message.md)
 13. [**Project history, decisions and lessons** — start here when resuming](docs/13-project-history-and-lessons.md)
+14. [Usability test protocol and KPIs](docs/14-usability-test-protocol.md)
 
 All sample data in this repository is synthetic.
 

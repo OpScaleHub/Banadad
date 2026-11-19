@@ -75,7 +75,7 @@ class ReportRepository(private val r: Repos) {
             reversedEntryIds = entries.mapNotNull { it.reversesEntryId }.toSet(),
             meters = db.waterDao().meters(buildingId), readings = db.waterDao().readings(buildingId),
             balances = r.finance.balances(buildingId),
-            statements = units.associate { it.id to r.finance.unitStatement(buildingId, it.id) },
+            statements = r.finance.unitStatements(buildingId, units.map { it.id }),
             generatedAt = r.clock.now(),
         )
     }
@@ -83,6 +83,6 @@ class ReportRepository(private val r: Repos) {
     /** Statement for one period: rows in [start, end] plus the balance brought forward. */
     suspend fun periodStatements(buildingId: String, periodId: String): Map<String, UnitStatement> {
         val p = r.db.periodDao().period(periodId) ?: fail(OpError.NOT_FOUND)
-        return r.db.buildingDao().units(buildingId).associate { it.id to r.finance.unitStatement(buildingId, it.id, p.startDate, p.endDate) }
+        return r.finance.unitStatements(buildingId, r.db.buildingDao().units(buildingId).map { it.id }, p.startDate, p.endDate)
     }
 }

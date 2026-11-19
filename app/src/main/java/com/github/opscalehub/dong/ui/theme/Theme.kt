@@ -93,9 +93,11 @@ private fun typography(): Typography {
     return Typography(
         displayLarge = base.displayLarge.fa(), displayMedium = base.displayMedium.fa(), displaySmall = base.displaySmall.fa(),
         headlineLarge = base.headlineLarge.fa(), headlineMedium = base.headlineMedium.fa(), headlineSmall = base.headlineSmall.fa(),
-        titleLarge = base.titleLarge.fa(), titleMedium = base.titleMedium.fa(), titleSmall = base.titleSmall.fa(),
-        bodyLarge = base.bodyLarge.fa(), bodyMedium = base.bodyMedium.fa(), bodySmall = base.bodySmall.fa(),
-        labelLarge = base.labelLarge.fa(), labelMedium = base.labelMedium.fa(), labelSmall = base.labelSmall.fa(),
+        // Older managers read this app: body text 16sp, nothing important below 14sp (Material's
+        // defaults are 14/12/11sp, and Persian script reads smaller than Latin at the same size).
+        titleLarge = base.titleLarge.fa(), titleMedium = base.titleMedium.fa(), titleSmall = base.titleSmall.copy(fontSize = 16.sp).fa(),
+        bodyLarge = base.bodyLarge.copy(fontSize = 17.sp).fa(), bodyMedium = base.bodyMedium.copy(fontSize = 16.sp).fa(), bodySmall = base.bodySmall.copy(fontSize = 14.sp).fa(),
+        labelLarge = base.labelLarge.copy(fontSize = 15.sp).fa(), labelMedium = base.labelMedium.copy(fontSize = 14.sp).fa(), labelSmall = base.labelSmall.copy(fontSize = 12.sp).fa(),
     )
 }
 

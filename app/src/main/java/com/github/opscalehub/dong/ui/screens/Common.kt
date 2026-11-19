@@ -22,13 +22,15 @@ import androidx.compose.ui.unit.dp
 import com.github.opscalehub.dong.data.OpException
 import com.github.opscalehub.dong.ui.AppViewModel
 
-/** Recomputes [block] whenever the database changes (or [keys] change). null while loading or on failure. */
+/** Recomputes [block] off the main thread whenever the database changes (or [keys] change). null while loading or on failure. */
 @Composable
 fun <T> derived(vm: AppViewModel, vararg keys: Any?, block: suspend () -> T): State<T?> {
     val changes by vm.changes.collectAsState()
     return produceState<T?>(null, changes, *keys) {
         value = try {
-            block()
+            // Off the main thread: reports and statements are real computation (seconds on a year of
+            // data), and on the UI thread they froze scrolling and taps.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { block() }
         } catch (e: OpException) {
             null
         } catch (e: kotlinx.coroutines.CancellationException) {

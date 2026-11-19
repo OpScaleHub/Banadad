@@ -75,6 +75,8 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
     val entries by vm.entries.collectAsState()
     val health by androidx.compose.runtime.produceState<com.github.opscalehub.dong.data.Health?>(null, building.id, periods.size, entries.size) {
         value = try {
+            // After the screen's own numbers: the check is for bugs, not for this moment.
+            kotlinx.coroutines.delay(2_000)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.github.opscalehub.dong.data.SelfCheck.run(vm.repos, building.id) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -131,9 +133,9 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                     // A prepaid month is billed on its first day, so sending and collecting start then.
                     val billed = finalized || report?.let { com.github.opscalehub.dong.data.isBilled(it, current) } == true
                     val send = report?.let { sendProgress(com.github.opscalehub.dong.data.billedUnits(it, current.id), shares, current.id) }
-                    add(StepState(S.stepSend, if (billed && send != null) S.sentCount.format(Fmt.number(send.first.toLong()), Fmt.number(send.second.toLong())) else S.afterClosing,
+                    add(StepState(S.stepSend, if (report == null) "…" else if (billed && send != null) S.sentCount.format(Fmt.number(send.first.toLong()), Fmt.number(send.second.toLong())) else S.afterClosing,
                         send != null && send.second > 0 && send.first >= send.second, billed) { nav.navigate(Routes.send(current.id)) })
-                    add(StepState(S.stepCollect, coll?.takeIf { it.billed > 0 }?.let { "${money(it.collected)} ${S.of} ${money(it.billed)}" } ?: S.afterClosing,
+                    add(StepState(S.stepCollect, if (report == null) "…" else coll?.takeIf { it.billed > 0 }?.let { "${money(it.collected)} ${S.of} ${money(it.billed)}" } ?: S.afterClosing,
                         coll != null && coll.billed > 0 && coll.collected >= coll.billed, billed) { nav.navigate(Routes.COLLECT) })
                 }
                     .let { list ->
@@ -153,6 +155,24 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                         vm.run(S.saved) { vm.repos.periods.create(building.id, m.name, m.start, m.end) }
                     }
                 }
+            }
+            // ---- starting balances: confirm once, before the first month closes -------------
+            item {
+                val seen by vm.ui.openingSeen.collectAsState()
+                var checking by remember { mutableStateOf(false) }
+                val firstMonthOpen = periods.none { it.status == PeriodStatus.FINALIZED }
+                val demo = building.name == SampleData.DEMO_NAME || building.name.contains("ساختگی")
+                if (!firstMonthOpen || building.id in seen || demo) return@item
+                val bal = report?.balances ?: return@item
+                val opening by derived(vm, building.id) { vm.repos.finance.opening(building.id) }
+                val o = opening ?: return@item
+                val owe = o.units.values.filter { it > 0 }
+                val ahead = o.units.values.filter { it < 0 }
+                val mf = com.github.opscalehub.dong.ui.LocalMoney.current
+                NoticeCard(S.startTitle, S.startBody.format(mf.withUnit(bal.cashTotal), mf.withUnit(owe.sum()), Fmt.number(owe.size.toLong()),
+                    mf.withUnit(-ahead.sum()), Fmt.number(ahead.size.toLong())), S.startCheck,
+                    secondary = S.startOk to { vm.ui.confirmOpening(building.id) }) { checking = true }
+                if (checking) OpeningDialog(vm, building.id, units) { checking = false }
             }
             // ---- after the deadline: who still owes --------------------------------
             item {

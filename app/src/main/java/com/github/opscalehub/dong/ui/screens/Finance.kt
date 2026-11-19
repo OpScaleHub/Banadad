@@ -282,7 +282,7 @@ internal fun signedOpening(amount: NumberFieldState, owes: Boolean): Long? = amo
 
 /** Opening balances, pre-filled with what is recorded; editable only until the first month closes. */
 @Composable
-private fun OpeningDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, close: () -> Unit) {
+internal fun OpeningDialog(vm: AppViewModel, b: String, units: List<UnitEntity>, close: () -> Unit) {
     val current by derived(vm, b) { vm.repos.finance.opening(b) }
     val cur = current ?: return
     val funds by vm.funds.collectAsState()

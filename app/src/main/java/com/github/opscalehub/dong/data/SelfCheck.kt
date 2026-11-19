@@ -40,12 +40,12 @@ object SelfCheck {
         if (bal != null && !bal.reconciles) problems += "ledger-unbalanced"
         val billed = report?.let { lastBilled(it) }
         val current = periods.lastOrNull()
+        if (current != null) attempt("month-statements") { r.finance.unitStatements(buildingId, units.map { it.id }, current.startDate, current.endDate) }
         units.forEachIndexed { i, u ->
             // Units are named by position, never by label.
             val tag = "unit${i + 1}"
             val s = report?.statements?.get(u.id) ?: attempt("$tag:statement") { r.finance.unitStatement(buildingId, u.id) }
             if (s != null && bal != null && s.closing != (bal.units[u.id] ?: 0L)) problems += "$tag:statement-mismatch"
-            if (current != null) attempt("$tag:month-statement") { r.finance.unitStatement(buildingId, u.id, current.startDate, current.endDate) }
             if (report != null) {
                 val bill = attempt("$tag:bill") { r.bills.bill(buildingId, u.id, billed?.id, report) }
                 if (bill != null && s != null && bill.due != s.closing) problems += "$tag:bill-mismatch"
