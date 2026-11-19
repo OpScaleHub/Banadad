@@ -37,6 +37,13 @@ object SampleData {
 
     data class Month(val start: Long, val end: Long, val name: String)
 
+    /**
+     * The calendar month containing [day], starting after [after] when that is later (a previous
+     * month whose end was edited into this one). Without it the next month overlaps and is refused.
+     */
+    fun monthAfter(after: Long?, day: Long = (after ?: 0) + 1): Month =
+        month(day).let { if (after != null && after >= it.start && after < it.end) it.copy(start = after + 1) else it }
+
     fun month(epochDay: Long, offset: Int = 0): Month {
         val j = Jalali.fromEpochDay(epochDay)
         var y = j.year

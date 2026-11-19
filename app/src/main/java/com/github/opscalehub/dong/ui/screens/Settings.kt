@@ -114,18 +114,43 @@ fun SettingsScreen(vm: AppViewModel) {
 fun rememberBackup(vm: AppViewModel, onDone: () -> Unit = {}): () -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // The saved file, until the manager has seen the confirmation (a snackbar alone was missed).
+    var saved by remember { mutableStateOf<android.net.Uri?>(null) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch {
             try {
                 val text = vm.backup.export()
                 withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) } ?: error("no stream") }
                 vm.ui.backedUp(vm.today)
-                vm.message(S.backupDone)
+                saved = uri
                 onDone()
             } catch (e: Exception) {
                 vm.message(S.unexpectedError)
             }
         }
+    }
+    saved?.let { uri ->
+        val name = remember(uri) {
+            try {
+                context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            } catch (e: Exception) { null }
+        }
+        // A copy on the same phone is lost with the phone: offer to send one elsewhere right away.
+        com.github.opscalehub.dong.ui.ConfirmDialog(S.backupSavedTitle, S.backupSavedBody.format(name?.let { "\u2066$it\u2069" } ?: S.backupFile), { saved = null }, {
+            saved = null
+            try {
+                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    clipData = android.content.ClipData.newRawUri(name ?: "", uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(android.content.Intent.createChooser(send, S.backupSendCopy).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (e: Exception) {
+                vm.message(S.unexpectedError)
+            }
+        }, S.backupSendCopy, dismissText = S.backupKeepHere)
     }
     return { launcher.launch("dang-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json") }
 }

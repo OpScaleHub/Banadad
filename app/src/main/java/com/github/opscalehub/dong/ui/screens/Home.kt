@@ -95,7 +95,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
             item {
                 if (current == null) {
                     MonthStart(S.thisMonth, S.noPeriod, S.startMonth) {
-                        val m = SampleData.month(vm.today)
+                        val m = SampleData.monthAfter(periods.maxOfOrNull { it.endDate }?.takeIf { it < vm.today }, vm.today)
                         vm.run(S.saved) { vm.repos.periods.create(building.id, m.name, m.start, m.end) }
                     }
                     return@item
@@ -149,7 +149,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                 if (finalized && vm.today > current.endDate && periods.none { it.startDate > current.endDate }) {
                     Spacer(Modifier.padding(4.dp))
                     MonthStart(S.monthDone, null, S.startNextMonth) {
-                        val m = SampleData.month(current.endDate + 1)
+                        val m = SampleData.monthAfter(current.endDate)
                         vm.run(S.saved) { vm.repos.periods.create(building.id, m.name, m.start, m.end) }
                     }
                 }
