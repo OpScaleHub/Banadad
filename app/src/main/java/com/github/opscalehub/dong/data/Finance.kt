@@ -481,7 +481,7 @@ class PeriodRepository(private val r: Repos) {
         var last: String? = null
         var guard = 0
         while (next <= r.clock.today() && guard++ < 24) {
-            val m = SampleData.month(next)
+            val m = SampleData.monthAfter(next - 1)
             last = create(buildingId, m.name, m.start, m.end)
             next = m.end + 1
         }

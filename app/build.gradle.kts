@@ -96,7 +96,11 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
-            all { it.maxHeapSize = "2g" }
+            all {
+                it.maxHeapSize = "2g"
+                // Longer fuzzing on demand: ./gradlew testDebugUnitTest --tests '*Fuzz*' -Pfuzz.seeds=500 -Pfuzz.steps=80 -Pfuzz.from=1000
+                listOf("fuzz.seeds", "fuzz.steps", "fuzz.from").forEach { k -> project.findProperty(k)?.let { v -> it.systemProperty(k, v.toString()) } }
+            }
         }
     }
 }

@@ -40,6 +40,7 @@ links to them.
 | 2026-11-18 | 0.7.0 | Owner's review of the whole app: backup reminder (home card when there is no backup or the last is 30+ days old, «بعداً» waits a week; a backup offer right after closing a month; last backup date in Settings, per phone), where to pay on bills and reminders (card number or IBAN and holder in Settings, grouped left-to-right; DB v6 `buildings.payAccount/payHolder`), the month's due date on bills, a payment receipt image (offered right after saving a payment, and from each payment in a unit's history), "due date passed, N units owe" card on Home with a reminder button per debtor, undo right after saving a payment or expense, «این صفحه چیست؟» help on the main screens. The name is shown as «دُنگ» everywhere users see it (docs/08). Landing page screenshots and social card retaken.
 | 2026-11-18 | 0.8.0 | Testers' first reports: a cancelled advance charge (month deleted and made again, people or rate changed) broke every unit statement and units showed «تسویه»; fixed, with `WorkflowInvariantsTest`. «اصلاح حساب واحد» on the unit screen after the first close, with no default direction. The app now checks its own books (`SelfCheck`: same invariants as the test) on Home and in «نظر یا گزارش مشکل»; a failure shows a card asking for a report. Reports carry the self-check result, counts and recent error codes (no names or amounts) and, only if the manager turns it on, the building's backup file. |
 | 2026-11-18 | 0.8.1 | «ویرایش ماه» for an open month (name, dates, due date; the advance charge follows the start date) so managers stop deleting and re-creating months; the delete dialog points to it. A screen computation that fails now says so (snackbar, at most once a minute) instead of leaving a default; an expense's paid/outstanding and the pay-supplier button wait until the paid amount is known (a wrong «outstanding» invited paying twice). `WorkflowInvariantsTest` also covers a part payment to a supplier and editing the open month. |
+| 2026-11-19 | 0.8.2 | Fuzz testing of the bookkeeping (`WorkflowFuzzTest`, 24k random actions clean) and a 6,000-event monkey run (no crash). Fixed: the next automatic month overlapped a month whose end had been edited, so months stopped being created. After a backup is saved, a clear dialog names the file and offers «فرستادن یک نسخه» (Telegram, Drive) — the old snackbar was missed and a copy on the same phone is lost with it. |
 
 ## 3. Key decisions and the reasons behind them
 
@@ -168,6 +169,13 @@ links to them.
   now walks a manager's first weeks and checks the books after every step; add new flows to it.
 - **Never show a default where a value failed to load.** A missing balance must not read
   «تسویه»; show nothing until the number is known.
+- **Fuzz the bookkeeping, not just the happy path.** `WorkflowFuzzTest` plays random manager
+  sessions (payments, undo, corrections, refunds, past debts, expenses, supplier payments, months
+  closed, edited, deleted, corrected, time passing, odd amounts and dates) and after every step
+  requires: refused actions change nothing, `SelfCheck` is clean, cash matches cash-moving entries.
+  It found that a month whose end was edited mid-month blocked every later automatic month
+  (`SampleData.monthAfter`). Run longer with `-Pfuzz.seeds=300 -Pfuzz.steps=80 -Pfuzz.from=100`;
+  for the UI, `adb shell monkey -p com.github.opscalehub.dong.debug -s 1405 -v 6000` on the emulator.
 - **Let the phone say when the books are wrong.** `SelfCheck` runs the same invariants as
   `WorkflowInvariantsTest` on the device (Home and the feedback screen) and reports codes like
   `unit3:statement:IllegalStateException@Finance.kt:380`; on the 0.7.0 code it flags the testers'
@@ -187,7 +195,7 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (163 tests after 0.8.0; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (164 tests after 0.8.2; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then

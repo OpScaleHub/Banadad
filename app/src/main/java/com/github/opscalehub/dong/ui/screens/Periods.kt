@@ -83,7 +83,7 @@ fun PeriodsScreen(vm: AppViewModel, nav: NavController) {
     }
     if (creating) {
         // Default: the month after the latest period, or the current month.
-        val m = periods.maxByOrNull { it.endDate }?.let { SampleData.month(it.endDate + 1) } ?: SampleData.month(vm.today)
+        val m = periods.maxByOrNull { it.endDate }?.let { SampleData.monthAfter(it.endDate) } ?: SampleData.month(vm.today)
         var name by rememberSaveable { mutableStateOf(m.name) }
         val start = rememberDate(m.start, building.calendar)
         val end = rememberDate(m.end, building.calendar)

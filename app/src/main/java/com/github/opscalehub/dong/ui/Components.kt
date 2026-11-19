@@ -445,7 +445,7 @@ fun <T> SingleChoice(options: List<T>, selected: T, onSelect: (T) -> Unit, text:
  */
 @Composable
 fun FormDialog(title: String, onDismiss: () -> Unit, onConfirm: () -> Unit, canConfirm: Boolean = true, confirmText: String = S.save,
-               content: @Composable ColumnScope.() -> Unit) {
+               dismissText: String = S.cancel, content: @Composable ColumnScope.() -> Unit) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
@@ -465,7 +465,7 @@ fun FormDialog(title: String, onDismiss: () -> Unit, onConfirm: () -> Unit, canC
                     Spacer(Modifier.height(12.dp))
                     Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = onDismiss) { Text(S.cancel) }
+                        TextButton(onClick = onDismiss) { Text(dismissText) }
                         TextButton(onClick = onConfirm, enabled = canConfirm) { Text(confirmText) }
                     }
                 }
@@ -475,8 +475,8 @@ fun FormDialog(title: String, onDismiss: () -> Unit, onConfirm: () -> Unit, canC
 }
 
 @Composable
-fun ConfirmDialog(title: String, body: String, onDismiss: () -> Unit, onConfirm: () -> Unit, confirmText: String = S.confirm) =
-    FormDialog(title, onDismiss, onConfirm, confirmText = confirmText) { Text(body) }
+fun ConfirmDialog(title: String, body: String, onDismiss: () -> Unit, onConfirm: () -> Unit, confirmText: String = S.confirm, dismissText: String = S.cancel) =
+    FormDialog(title, onDismiss, onConfirm, confirmText = confirmText, dismissText = dismissText) { Text(body) }
 
 /** Asks for a mandatory reason (reversals, voids, corrections). */
 @Composable
