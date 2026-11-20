@@ -55,7 +55,8 @@ class BillRepository(private val r: Repos) {
             later = since?.let { it.charges - month } ?: 0,
             adjust = since?.let { it.refunds - it.creditsAndAdjustments } ?: 0,
             dueDate = p?.dueDate?.let { Fmt.date(it, b.calendar) },
-            payAccount = b.payAccount, payHolder = b.payHolder)
+            payAccount = b.payAccount, payHolder = b.payHolder,
+            pending = p?.let { Insights.pendingComposition(d, unitId, it.id) }.orEmpty())
     }
 
     /** A receipt for the resident payment [entryId]. */
@@ -91,7 +92,9 @@ class BillRepository(private val r: Repos) {
 fun billedUnits(d: ReportData, periodId: String): Set<String> {
     val p = d.periods.firstOrNull { it.id == periodId }
     return if (p != null && p.status == PeriodStatus.DRAFT)
-        Insights.postedCharges(d, periodId).groupBy { it.first }.filterValues { l -> l.sumOf { it.third } != 0L }.keys
+        Insights.postedCharges(d, periodId).groupBy { it.first }.filterValues { l -> l.sumOf { it.third } != 0L }.keys +
+            // A unit exempt from the monthly charge still gets a bill when it shares a bill charged at closing.
+            (if (isBilled(d, p)) d.units.filter { u -> Insights.pendingComposition(d, u.id, periodId).isNotEmpty() }.map { it.id } else emptyList())
     else d.periodResults[periodId]?.lines.orEmpty().filter { it.amount != 0L }.mapNotNull { it.unitId }.toSet()
 }
 

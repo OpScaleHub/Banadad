@@ -135,6 +135,8 @@ class EndToEndTest {
         // Step 4: how the building charges. Splitting the bills keeps this test's numbers.
         clickLast("هر ماه قبض‌ها را بین واحدها تقسیم می‌کنم")
         clickLast("بعدی")
+        // Step 5 (0.9.0): past debts are an explicit answer, «پایان» stays off until given.
+        clickLast("نه، حساب همه صاف است")
         clickLast("پایان")
         waitFor("این ماه")
         val building = runBlocking { container.db.buildingDao().buildings().single() }
@@ -189,11 +191,11 @@ class EndToEndTest {
         tab("خانه")
         // 3c. home step 5: the debtors list with a payment button per unit
         clickExpect("وصول شارژ", "واحدهای بدهکار، از بیشترین بدهی.")
-        waitFor("واحد ۱-۱")
+        waitFor("واحد \u2066۱-۱\u2069") // labels are LTR-isolated (0.9.1)
 
         // 4. payment from the unit page: 50,000 Toman
         tab("واحدها")
-        clickExpect("واحد ۱-۱", "ارسال قبض")
+        clickExpect("واحد \u2066۱-۱\u2069", "ارسال قبض")
         clickExpect("ثبت دریافت", "ثبت دریافت از واحد")
         type("مبلغ", "50000")
         clickLast("ذخیره")

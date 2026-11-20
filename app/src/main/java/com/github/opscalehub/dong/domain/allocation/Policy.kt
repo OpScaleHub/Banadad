@@ -62,8 +62,13 @@ sealed interface Basis {
     @Serializable @SerialName("consumption")
     data class Consumption(val common: CommonWater = CommonWater.Proportional) : Basis
 
+    /**
+     * Per-unit multipliers. A unit's multiplier is weight / [scale]: scale 2 allows halves
+     * («½ برابر» is weight 1, «۱ برابر» weight 2). Splitting a total only uses the ratios; a rate
+     * (monthly charge per «۱ برابر») is multiplied by weight / scale.
+     */
     @Serializable @SerialName("weighted")
-    data class Weighted(val weights: Map<String, Long>) : Basis
+    data class Weighted(val weights: Map<String, Long>, val scale: Long = 1) : Basis
 
     @Serializable @SerialName("explicit")
     data class Explicit(val amounts: Map<String, Long>) : Basis

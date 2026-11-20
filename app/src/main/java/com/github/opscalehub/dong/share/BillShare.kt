@@ -35,7 +35,14 @@ data class Bill(
     /** Where to pay (building settings); blank = not shown. */
     val payAccount: String = "",
     val payHolder: String = "",
-)
+    /**
+     * An open month's bills that are charged when the month closes (e.g. a repair the residents
+     * prepay), by description. Not in [due]; shown apart in amber so residents can pay ahead.
+     */
+    val pending: List<Pair<String, Long>> = emptyList(),
+) {
+    val pendingTotal: Long get() = pending.sumOf { it.second }
+}
 
 /** One resident payment, as a receipt the manager sends back. */
 data class Receipt(
@@ -106,7 +113,18 @@ object BillShare {
             if (bill.due > 0) ImageDoc.RED else ImageDoc.TEAL,
         ))
         if (bill.due > 0 && bill.dueDate != null) add(Block.Row(S.billDue, bill.dueDate, bold = true))
-        if (bill.due > 0 && bill.payAccount.isNotBlank()) {
+        // Bills of the open month that are charged at closing: shown apart (amber), not in the total
+        // above, so residents see what is coming and can pay it ahead.
+        if (bill.pending.isNotEmpty()) {
+            add(Block.Rule)
+            add(Block.Section(S.billPending, ImageDoc.AMBER))
+            add(Block.Note(S.billPendingNote, ImageDoc.AMBER))
+            bill.pending.forEach { (k, v) -> add(Block.Row(k, money.format(v), color = ImageDoc.AMBER)) }
+            if (bill.pending.size > 1) add(Block.Row(S.total, money.format(bill.pendingTotal), bold = true, color = ImageDoc.AMBER))
+            val withPending = bill.due + bill.pendingTotal
+            if (withPending > 0) add(Block.Row(S.billWithPending, money.withUnit(withPending), bold = true))
+        }
+        if ((bill.due > 0 || bill.due + bill.pendingTotal > 0) && bill.payAccount.isNotBlank()) {
             add(Block.Rule)
             add(Block.Section(S.payTo))
             add(Block.Row(S.payAccount, PayTo.format(bill.payAccount), bold = true))

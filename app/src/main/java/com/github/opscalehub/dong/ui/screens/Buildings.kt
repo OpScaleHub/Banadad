@@ -137,8 +137,11 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
     val unitsValid = rows.isNotEmpty() && rows.all { it.valid } && rows.map { it.label.trim() }.toSet().size == rows.size
     val areasKnown = rows.all { (Fmt.parseCubicMeters(it.area) ?: 0) > 0 }
     fun plan(): BuildingRepository.ChargePlan.Fixed = when (basis) {
-        BuildingRepository.FixedBasis.PER_UNIT -> BuildingRepository.ChargePlan.Fixed(perUnit = rate.value ?: 0,
-            unitWeights = if (differ) rows.indices.map { weights.getOrElse(it) { 1L } } else null)
+        BuildingRepository.FixedBasis.PER_UNIT -> {
+            // [weights] holds halves («½ برابر» = 1); stored as whole multipliers unless a half is used.
+            val w = if (differ) com.github.opscalehub.dong.ui.halvesToWeights(rows.indices.map { weights.getOrElse(it) { 2L } }) else null
+            BuildingRepository.ChargePlan.Fixed(perUnit = rate.value ?: 0, unitWeights = w?.first, weightScale = w?.second ?: 1)
+        }
         BuildingRepository.FixedBasis.PER_PERSON -> BuildingRepository.ChargePlan.Fixed(perPerson = rate.value ?: 0)
         BuildingRepository.FixedBasis.PER_M2 -> BuildingRepository.ChargePlan.Fixed(perM2 = rate.value ?: 0)
         BuildingRepository.FixedBasis.COMBINED -> BuildingRepository.ChargePlan.Fixed(perUnit = rateBase.value ?: 0, perPerson = ratePeople.value ?: 0, perM2 = rateM2.value ?: 0)
@@ -146,7 +149,7 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
     /** What unit [i] would pay each month under the plan (the same rounding-free sum the engine starts from). */
     fun exampleFor(i: Int): Long {
         val p = plan(); val r = rows[i].toDraft()
-        return p.perUnit * (p.unitWeights?.getOrNull(i) ?: 1L) + p.perPerson * r.occupants + p.perM2 * r.areaCentiM2 / 100
+        return p.perUnit * (p.unitWeights?.getOrNull(i) ?: p.weightScale) / p.weightScale + p.perPerson * r.occupants + p.perM2 * r.areaCentiM2 / 100
     }
     val planValid = fixed == false || (fixed == true && plan().let { p ->
         p.perUnit + p.perPerson + p.perM2 > 0 && (p.perM2 == 0L || areasKnown) && (p.unitWeights?.any { it > 0 } ?: true)
@@ -243,7 +246,7 @@ fun SetupWizard(vm: AppViewModel, onDone: () -> Unit, onCancel: (() -> Unit)? = 
                                 com.github.opscalehub.dong.ui.SwitchRow(S.unitsDiffer, differ, { differ = it }, supporting = S.unitsDifferHint)
                                 if (differ) com.github.opscalehub.dong.ui.MultiplierEditor(
                                     rows.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${Fmt.ltr(it.label)}", Fmt.parseLong(it.floor)?.toInt() ?: 1) },
-                                    rows.indices.map { weights.getOrElse(it) { 1L } },
+                                    rows.indices.map { weights.getOrElse(it) { 2L } },
                                 ) { w -> weights.clear(); weights.addAll(w) }
                             }
                             val p = plan()

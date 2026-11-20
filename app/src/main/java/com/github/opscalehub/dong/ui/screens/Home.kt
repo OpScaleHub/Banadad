@@ -70,7 +70,6 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
     val current = vm.currentPeriod(periods, vm.today)
     val preview by derived(vm, current?.id, current?.status) { current?.let { vm.repos.periods.preview(it.id) } }
     val report by derived(vm, building.id) { vm.reports.load(building.id) }
-    var paying by remember { mutableStateOf(false) }
     // The books' invariants, re-checked when months or entries change; a failure is a bug to report.
     val entries by vm.entries.collectAsState()
     val health by androidx.compose.runtime.produceState<com.github.opscalehub.dong.data.Health?>(null, building.id, periods.size, entries.size) {
@@ -85,7 +84,8 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
         }
     }
 
-    WithFab(S.payNow, { paying = true }) {
+    // Home is for looking; payments are recorded from the Units tab («ثبت دریافت»).
+    WithFab(null, {}) {
         ScreenList {
             if (health?.ok == false) item {
                 SectionCard(S.healthTitle) {
@@ -263,7 +263,6 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
             }
         }
     }
-    if (paying) PaymentDialog(vm, building.id, units, building.calendar, 0, close = { paying = false })
 }
 
 @Composable

@@ -186,7 +186,12 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
                         tabs.forEach { t ->
                             NavigationBarItem(
                                 selected = route == t.route,
-                                onClick = { nav.navigate(t.route) { popUpTo(Routes.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                onClick = {
+                                    // «خانه» always shows Home: its step cards open other tabs' screens on top of
+                                    // Home, and restoring Home's saved stack would bring those back instead.
+                                    if (t.route == Routes.HOME) { if (!nav.popBackStack(Routes.HOME, inclusive = false)) nav.navigate(Routes.HOME) }
+                                    else nav.navigate(t.route) { popUpTo(Routes.HOME) { saveState = true }; launchSingleTop = true; restoreState = true }
+                                },
                                 icon = { Icon(t.icon, null) },
                                 label = { Text(t.label) },
                             )

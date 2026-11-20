@@ -120,10 +120,14 @@ expense reduces the fund.
 AllocationPolicy(fundOnly: Boolean, components: List<Component>)
 Component(portion: Remainder | Percent(bp) | Fixed(minor),
           basis: Equal | Occupants | Area | Consumption(common) |
-                 Weighted(weights) | Explicit(amounts) | Parking(filter, relations, spaceWeights),
+                 Weighted(weights, scale) | Explicit(amounts) | Parking(filter, relations, spaceWeights),
           eligibility: AllActive | Selected(unitIds))
 Consumption.common: Proportional | Separate(basis) | FundBorne
 ```
+
+`Weighted.scale` (default 1) lets multipliers be halves: a unit's multiplier is weight / scale,
+so with scale 2 «½ برابر» is weight 1 and «۱ برابر» weight 2. Splitting a total uses only the
+ratios; a rate charge (per «۱ برابر») is rate × weight / scale, rounded half-up.
 
 Algorithm for an amount `A`:
 

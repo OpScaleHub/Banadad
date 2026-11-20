@@ -67,6 +67,8 @@ class ComponentState(c: AllocationComponent) {
     val spaceIds = mutableStateListOf<String>().apply { addAll(parking?.spaceIds ?: emptySet()) }
     var allUnits by mutableStateOf(c.eligibility == Eligibility.AllActive)
     val selected = mutableStateListOf<String>().apply { addAll((c.eligibility as? Eligibility.Selected)?.unitIds ?: emptySet()) }
+    /** Multiplier scale of a weighted split (2 when some unit pays «½ برابر»); kept as loaded. */
+    private val weightScale = (c.basis as? Basis.Weighted)?.scale ?: 1L
     /** unitId → text for weights or explicit amounts. */
     val perUnit = mutableStateMapOf<String, String>().apply {
         when (val b = c.basis) {
@@ -98,7 +100,7 @@ class ComponentState(c: AllocationComponent) {
                 CommonChoice.SEPARATE_AREA -> CommonWater.Separate(SimpleBasis.AREA)
                 CommonChoice.FUND_BORNE -> CommonWater.FundBorne
             })
-            BasisKind.WEIGHTED -> Basis.Weighted(perUnit.mapNotNull { (k, v) -> if (v.isBlank()) null else k to (Fmt.parseLong(v)?.takeIf { it >= 0 } ?: return null) }.toMap())
+            BasisKind.WEIGHTED -> Basis.Weighted(perUnit.mapNotNull { (k, v) -> if (v.isBlank()) null else k to (Fmt.parseLong(v)?.takeIf { it >= 0 } ?: return null) }.toMap(), weightScale)
             BasisKind.EXPLICIT -> Basis.Explicit(perUnit.mapNotNull { (k, v) -> if (v.isBlank()) null else k to (Fmt.parseMoney(v)?.takeIf { it >= 0 } ?: return null) }.toMap())
             BasisKind.PARKING -> Basis.Parking(parkingFilter, relations.toSet(), spaceIds.toSet())
             BasisKind.WATER_TARIFF -> return null

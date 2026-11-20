@@ -98,7 +98,9 @@ fun SendBillsScreen(vm: AppViewModel, periodId: String, onAddPayment: () -> Unit
             val u = rows[i]
             val mine = shares.filter { it.periodId == p.id && it.unitId == u.id }
             val last = mine.maxByOrNull { it.at }
-            val charge = d.periodResults[p.id]?.lines.orEmpty().filter { it.unitId == u.id }.sumOf { it.amount }
+            // An open month: what is charged so far, and apart, the bills charged at closing (as on the bill image).
+            val charge = com.github.opscalehub.dong.data.Insights.unitComposition(d, u.id, p.id).sumOf { it.second }
+            val pending = com.github.opscalehub.dong.data.Insights.pendingComposition(d, u.id, p.id).sumOf { it.second }
             SectionCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     UnitChip(u.label, if (last != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer)
@@ -106,6 +108,7 @@ fun SendBillsScreen(vm: AppViewModel, periodId: String, onAddPayment: () -> Unit
                     Column(Modifier.weight(1f)) {
                         Text("${S.unit} ${Fmt.ltr(u.label)}", style = MaterialTheme.typography.titleMedium)
                         Hint("${S.billThisMonth}: ${money(charge)}")
+                        if (pending != 0L) Hint("${S.billPending}: ${money(pending)}", com.github.opscalehub.dong.ui.theme.LocalViz.current.pending)
                         Hint(if (last == null) S.notSent else "${S.sentOn} ${shareDate(last.at, building)}" +
                             if (mine.size > 1) " (${Fmt.number(mine.size.toLong())} ${S.times})" else "",
                             if (last == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)

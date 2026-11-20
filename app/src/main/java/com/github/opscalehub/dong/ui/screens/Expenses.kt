@@ -258,8 +258,8 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                     .filter { !prepaid || !it.third.fundOnly }
                 // Multipliers: a weighted split edited as «۱×، ۲×…» per unit (e.g. elevator by floor).
                 val active = units.filter { it.active }.sortedBy { it.sortOrder }
-                val currentWeights = (pol?.components?.singleOrNull()?.basis as? Basis.Weighted)?.weights
-                val weighted = currentWeights != null && pol.components.size == 1
+                val currentBasis = pol?.components?.singleOrNull()?.basis as? Basis.Weighted
+                val weighted = currentBasis != null
                 val custom = pol != null && !weighted && options.none { it.third == pol }
                 options.forEach { (label, hint, p) -> SplitOption(label, hint, pol == p) { policy.reset(p); policyTouched = true } }
                 SplitOption(S.splitWeighted, S.splitWeightedHint, weighted) {
@@ -268,8 +268,8 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                 if (weighted) {
                     com.github.opscalehub.dong.ui.MultiplierEditor(
                         active.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${Fmt.ltr(it.label)} (${S.floor} ${Fmt.number(it.floor.toLong())})", it.floor) },
-                        active.map { currentWeights!![it.id] ?: 1L },
-                    ) { w -> policy.reset(AllocationPolicy.single(Basis.Weighted(active.map { it.id }.zip(w).toMap()))); policyTouched = true }
+                        active.map { u -> currentBasis!!.weights[u.id]?.let { com.github.opscalehub.dong.ui.weightToHalves(it, currentBasis.scale) } ?: 2L },
+                    ) { h -> policy.reset(AllocationPolicy.single(com.github.opscalehub.dong.ui.weightedFromHalves(active.map { it.id }, h))); policyTouched = true }
                 }
                 if (custom) SplitOption(S.splitCustom, pol?.let { policySummary(it) } ?: "", true) {}
                 // Remember this choice for the expense type, so next month needs no decision.
