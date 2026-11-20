@@ -69,6 +69,8 @@ data class VizColors(
     val grid: Color,
     val baseline: Color,
     val muted: Color,
+    /** Expected but not yet charged (an open month's bills charged at closing). */
+    val pending: Color,
 )
 
 private val VizLight = VizColors(
@@ -76,6 +78,7 @@ private val VizLight = VizColors(
     aging = listOf(0xFF6DA7EC, 0xFF2A78D6, 0xFF1C5CAB, 0xFF0D366B).map(::Color),
     positive = Color(0xFF2A78D6), negative = Color(0xFFE34948), neutral = Color(0xFF898781),
     track = Color(0xFFDDE5E3), grid = Color(0xFFE1E0D9), baseline = Color(0xFFC3C2B7), muted = Color(0xFF6B6A66),
+    pending = Color(0xFF9A5800),
 )
 
 private val VizDark = VizColors(
@@ -83,6 +86,7 @@ private val VizDark = VizColors(
     aging = listOf(0xFF1C5CAB, 0xFF3987E5, 0xFF86B6EF, 0xFFCDE2FB).map(::Color),
     positive = Color(0xFF3987E5), negative = Color(0xFFE66767), neutral = Color(0xFF898781),
     track = Color(0xFF2E3535), grid = Color(0xFF2C2C2A), baseline = Color(0xFF383835), muted = Color(0xFFA9A89F),
+    pending = Color(0xFFE0A030),
 )
 
 val LocalViz = staticCompositionLocalOf { VizLight }

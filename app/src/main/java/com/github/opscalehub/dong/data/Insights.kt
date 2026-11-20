@@ -196,6 +196,26 @@ object Insights {
         return lines.groupBy { it.first }.map { (c, l) -> c to l.sumOf { it.second } }.filter { it.second != 0L }.sortedByDescending { it.second }
     }
 
+    /**
+     * What a unit is expected to be charged when an open month closes, beyond what is already
+     * charged: its share of bills split among units (a repair the neighbours prepay, say) and of
+     * charges posted only at closing. Labelled by the bill's description (or the charge's name),
+     * largest first. Empty for a closed month. Not part of the balance: it is shown apart so
+     * residents can pay ahead. The monthly charge posted on day 1 is excluded (already charged).
+     */
+    fun pendingComposition(d: ReportData, unitId: String, periodId: String): List<Pair<String, Long>> {
+        val p = d.periods.firstOrNull { it.id == periodId } ?: return emptyList()
+        if (p.status != com.github.opscalehub.dong.data.db.PeriodStatus.DRAFT) return emptyList()
+        // Charges posted on the first day (see PeriodRepository.postAdvance) are already in the balance.
+        val advanced = if (postedCharges(d, periodId).any { it.third != 0L })
+            d.chargeItems.filter { it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }.map { it.id }.toSet()
+        else emptySet()
+        val lines = d.periodResults[periodId]?.lines.orEmpty()
+            .filter { it.unitId == unitId && !(it.sourceType == com.github.opscalehub.dong.domain.period.SourceType.CHARGE_ITEM && it.sourceId in advanced) }
+        return lines.groupBy { d.sourceName(it.sourceId) }.map { (k, l) -> k to l.sumOf { it.amount } }
+            .filter { it.second != 0L }.sortedByDescending { it.second }
+    }
+
     /** Charges already in the journal for a period: (unit, category, amount), reversed pairs removed. */
     fun postedCharges(d: ReportData, periodId: String): List<Triple<String, String, Long>> {
         val entries = effectiveEntries(d).filterValues { it.periodId == periodId && it.type in setOf(EntryType.CHARGE, EntryType.PERIOD_CORRECTION) }

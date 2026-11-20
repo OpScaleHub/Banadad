@@ -42,6 +42,9 @@ links to them.
 | 2026-11-18 | 0.8.1 | «ویرایش ماه» for an open month (name, dates, due date; the advance charge follows the start date) so managers stop deleting and re-creating months; the delete dialog points to it. A screen computation that fails now says so (snackbar, at most once a minute) instead of leaving a default; an expense's paid/outstanding and the pay-supplier button wait until the paid amount is known (a wrong «outstanding» invited paying twice). `WorkflowInvariantsTest` also covers a part payment to a supplier and editing the open month. |
 | 2026-11-19 | 0.8.2 | Fuzz testing of the bookkeeping (`WorkflowFuzzTest`, 24k random actions clean) and a 6,000-event monkey run (no crash). Fixed: the next automatic month overlapped a month whose end had been edited, so months stopped being created. After a backup is saved, a clear dialog names the file and offers «فرستادن یک نسخه» (Telegram, Drive) — the old snackbar was missed and a copy on the same phone is lost with it. |
 | 2026-11-19 | 0.9.0 | First-time setup for non-technical managers: text size chosen in the first wizard step; past debts are an explicit yes/no (no silent default); a «مانده‌های اول کار» card on Home until confirmed, and closing the first month shows the balances it locks. A first month made after its usual deadline gives a week from today (a new building was «overdue» on day one). Minimum text sizes raised (body 16sp, hints 14sp). Screen computations moved off the main thread and unit statements read the journal once per report (the year demo froze Home for ~1.5 s). docs/14: usability test protocol with KPIs (task success, SEQ, SUS). |
+| 2026-11-19 | 0.9.1 | Real-phone test: unit labels like «1-2» flipped to «2-1» inside Persian text (now an LTR isolate everywhere); clearer «۰۰۰» button (it appends zeros). |
+| 2026-11-19 | 0.9.2 | «فرستادن فایل پشتیبان» in Settings shares a backup straight to Telegram, email or Drive (no file picker; the owner's phone had a stuck media scanner that hung every SAF save). |
+| 2026-11-20 | 0.10.0 | Owner's feedback: (1) a bill split among units in an open month (e.g. an elevator repair the neighbours prepay) was invisible until closing, though bills go out all month. Now bills, the send list and the unit page show it as «هزینه‌های در راه این ماه» in amber, apart from the amount due, with «با هزینه‌های در راه» as the total to pay ahead; a unit exempt from the monthly charge still gets a bill for its share (`Insights.pendingComposition`). (2) «½ برابر» in the per-unit multipliers (everyone pays the same, one or two units half): `Basis.Weighted.scale` (2 when a half is used; old data scale 1, rates multiplied by weight / scale). (3) Home has no «ثبت دریافت» button (Home is for looking); the Units tab's main button is now «ثبت دریافت», «+ واحد جدید» is a small link. Also fixed: the «خانه» tab showed the screen a Home step had opened (Expenses, Debtors) instead of Home. |
 
 ## 3. Key decisions and the reasons behind them
 
@@ -196,7 +199,7 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (165 tests after 0.9.0; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (168 tests after 0.10.0; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then

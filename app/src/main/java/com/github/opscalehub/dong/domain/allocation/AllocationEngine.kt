@@ -426,7 +426,7 @@ object AllocationEngine {
             Basis.Area -> 100L
             is Basis.Parking -> 1L
             // A per-unit rate times each unit's multiplier (e.g. small 1×, large 2×).
-            is Basis.Weighted -> 1L
+            is Basis.Weighted -> comp.basis.scale.coerceAtLeast(1)
             else -> {
                 issues += Issue(IssueCode.RATE_BASIS_UNSUPPORTED, sourceId)
                 return AllocationResult(sourceId, 0, emptyMap(), 0, emptyList(), issues)

@@ -110,7 +110,8 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
     val context = LocalContext.current
     val mf = LocalMoney.current
 
-    WithFab(if (collect) S.payNow else S.newUnit, { if (collect) payingAny = true else adding = true }) {
+    // Recording a payment is the everyday job; adding a unit is rare, so it is a small button below.
+    WithFab(S.payNow, { payingAny = true }) {
         ScreenList {
             if (collect) item {
                 val d = report ?: return@item
@@ -165,6 +166,7 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
                     }
                 }
                 if (reordering) Hint(S.moveHint)
+                else if (units.isNotEmpty()) TextButton(onClick = { adding = true }) { Text("+ " + S.newUnit) }
             }
             val shown = units.filter { u ->
                 val bal = balances[u.id] ?: 0
@@ -310,6 +312,10 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
                 )
                 if (statement != null) Text(if (balance == 0L) "—" else mf.withUnit(kotlin.math.abs(balance)), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
                     color = if (balance > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                // Bills of the open month that are charged at closing (e.g. a repair being prepaid).
+                val pending = report?.let { d -> d.periods.filter { it.status == PeriodStatus.DRAFT }
+                    .sumOf { p -> Insights.pendingComposition(d, unitId, p.id).sumOf { it.second } } } ?: 0L
+                if (pending != 0L) Hint("${S.billPending}: ${mf.withUnit(pending)}", viz.pending)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { paying = true }) { Text(S.payNow) }
                     OutlinedButton(onClick = {

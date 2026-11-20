@@ -23,8 +23,10 @@ import java.io.File
 sealed interface Block {
     data class Title(val text: String) : Block
     data class Subtitle(val text: String) : Block
-    data class Section(val text: String) : Block
-    data class Row(val label: String, val value: String, val bold: Boolean = false) : Block
+    data class Section(val text: String, val color: Int? = null) : Block
+    data class Row(val label: String, val value: String, val bold: Boolean = false, val color: Int? = null) : Block
+    /** A small explanatory line under a section. */
+    data class Note(val text: String, val color: Int? = null) : Block
     /** A row with a thin bar under it; [fraction] is 0..1 of the full width. */
     data class Bar(val label: String, val value: String, val fraction: Float, val color: Int = ImageDoc.TEAL) : Block
     data class Big(val label: String, val value: String?, val color: Int) : Block
@@ -40,6 +42,8 @@ sealed interface Block {
 object ImageDoc {
     val TEAL = Color.rgb(0x00, 0x69, 0x5C)
     val RED = Color.rgb(0xB3, 0x26, 0x1E)
+    /** Expected, not yet charged (dark amber: readable on white, apart from red debt and teal paid). */
+    val AMBER = Color.rgb(0x9A, 0x58, 0x00)
     private val INK = Color.rgb(0x1B, 0x24, 0x24)
     private val MUTED = Color.rgb(0x5B, 0x6B, 0x6B)
     private val TRACK = Color.rgb(0xE6, 0xEC, 0xEB)
@@ -63,10 +67,12 @@ object ImageDoc {
             when (b) {
                 is Block.Title -> Item(layout(b.text, paint(56f, bold, TEAL)), null, 12f)
                 is Block.Subtitle -> Item(layout(b.text, paint(38f, regular, MUTED)), null, 40f, rule = true)
-                is Block.Section -> Item(layout(b.text, paint(36f, bold)), null, 16f)
+                is Block.Section -> Item(layout(b.text, paint(36f, bold, b.color ?: INK)), null, 16f)
+                is Block.Note -> Item(layout(b.text, paint(30f, regular, b.color ?: MUTED)), null, 16f)
                 is Block.Row -> {
                     val tf = if (b.bold) bold else regular
-                    Item(layout(b.label, paint(36f, tf)), layout(b.value, paint(36f, tf), opposite = true), 10f)
+                    val color = b.color ?: INK
+                    Item(layout(b.label, paint(36f, tf, color)), layout(b.value, paint(36f, tf, color), opposite = true), 10f)
                 }
                 is Block.Bar -> Item(layout(b.label, paint(34f, regular)), layout(b.value, paint(34f, regular), opposite = true), 18f,
                     bar = b.fraction.coerceIn(0f, 1f) to b.color)

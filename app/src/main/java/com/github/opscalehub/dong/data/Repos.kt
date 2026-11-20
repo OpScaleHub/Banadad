@@ -156,10 +156,10 @@ class BuildingRepository(private val r: Repos) {
     sealed interface ChargePlan {
         /**
          * The same amounts every month, added together: [perUnit] (times the unit's multiplier from
-         * [unitWeights], one per unit in order, when given) + [perPerson] × residents + [perM2] × area.
-         * Bills are paid from the fund, not charged again.
+         * [unitWeights] / [weightScale], one per unit in order, when given; scale 2 allows «½ برابر»)
+         * + [perPerson] × residents + [perM2] × area. Bills are paid from the fund, not charged again.
          */
-        data class Fixed(val perUnit: Long = 0, val perPerson: Long = 0, val perM2: Long = 0, val unitWeights: List<Long>? = null) : ChargePlan {
+        data class Fixed(val perUnit: Long = 0, val perPerson: Long = 0, val perM2: Long = 0, val unitWeights: List<Long>? = null, val weightScale: Long = 1) : ChargePlan {
             constructor(basis: FixedBasis, rateMinor: Long) : this(
                 perUnit = if (basis == FixedBasis.PER_UNIT) rateMinor else 0,
                 perPerson = if (basis == FixedBasis.PER_PERSON) rateMinor else 0,
@@ -191,7 +191,7 @@ class BuildingRepository(private val r: Repos) {
             val rates = listOf(plan.perUnit, plan.perPerson, plan.perM2)
             if (rates.any { it < 0 } || rates.sum() <= 0) fail(OpError.INVALID_AMOUNT, "monthly charge")
             if (plan.perM2 > 0 && units.any { it.areaCentiM2 <= 0 }) fail(OpError.INVALID_INPUT, "area")
-            plan.unitWeights?.let { w -> if (w.size != units.size || w.any { it < 0 } || w.all { it == 0L }) fail(OpError.INVALID_INPUT, "multipliers") }
+            plan.unitWeights?.let { w -> if (w.size != units.size || w.any { it < 0 } || w.all { it == 0L } || plan.weightScale !in 1..2) fail(OpError.INVALID_INPUT, "multipliers") }
         }
         val b = create(name, address, roundingIncrement, displayCurrencyName = if (displayToman) "تومان" else "", displayDivisor = if (displayToman) 10 else 1,
             plan = plan, bills = bills, areasKnown = units.all { it.areaCentiM2 > 0 })
@@ -214,7 +214,7 @@ class BuildingRepository(private val r: Repos) {
         if (plan is ChargePlan.Fixed) {
             val cat = r.db.expenseDao().categories(b).first { !it.active }
             val ids = r.db.buildingDao().units(b).sortedBy { it.sortOrder }.map { it.id }
-            val perUnitBasis = plan.unitWeights?.let { w -> Basis.Weighted(ids.zip(w).toMap()) } ?: Basis.Equal
+            val perUnitBasis = plan.unitWeights?.let { w -> Basis.Weighted(ids.zip(w).toMap(), plan.weightScale) } ?: Basis.Equal
             // One charge per non-zero rate, all of type «شارژ ماهانه» so a bill shows them as one line.
             val parts = listOf(Triple(S_BASE, plan.perUnit, perUnitBasis), Triple(S_PEOPLE, plan.perPerson, Basis.Occupants), Triple(S_AREA, plan.perM2, Basis.Area))
                 .filter { it.second > 0 }
