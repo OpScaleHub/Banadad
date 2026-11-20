@@ -67,7 +67,9 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
     val funds by vm.funds.collectAsState()
     val shares by vm.billShares.collectAsState()
     val chargeItems by vm.chargeItems.collectAsState()
-    val current = vm.currentPeriod(periods, vm.today)
+    // Today's month, even when closed early: its bills and collection are still this month's work.
+    // A next month started ahead of time (e.g. for a bill recorded after closing) waits its turn.
+    val current = periods.firstOrNull { vm.today in it.startDate..it.endDate } ?: vm.currentPeriod(periods, vm.today)
     val preview by derived(vm, current?.id, current?.status) { current?.let { vm.repos.periods.preview(it.id) } }
     val report by derived(vm, building.id) { vm.reports.load(building.id) }
     // The books' invariants, re-checked when months or entries change; a failure is a bug to report.

@@ -125,14 +125,16 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
             if (!collect) item {
                 val d = report ?: return@item
                 val aging = Insights.aging(d, vm.today)
-                SectionCard(S.debtAging, subtitle = S.signConvention) {
+                SectionCard(S.debtAging, subtitle = if (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp >= 700) S.signConvention else null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(money(d.balances.outstandingDebts), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                             color = if (d.balances.outstandingDebts > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(8.dp))
                         Hint("${LocalMoney.current.unitName}، ${Fmt.number(balances.values.count { it > 0 }.toLong())} ${S.debtorUnits}")
                     }
-                    val top = aging.filter { it.total > 0 }.take(5)
+                    // A short phone (under ~700dp tall) shows only the total, so the units list is on screen.
+                    val roomy = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp >= 700
+                    val top = if (roomy) aging.filter { it.total > 0 }.take(5) else emptyList()
                     val max = top.maxOfOrNull { it.total } ?: 1
                     top.forEach { a ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
