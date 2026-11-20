@@ -95,6 +95,8 @@ object S {
     const val area = "متراژ (متر مربع)"
     const val occupants = "تعداد ساکنان"
     const val newUnit = "واحد جدید"
+    const val addUnitLater = "افزودن واحد به ساختمان"
+    const val addUnitHint = "واحدها هنگام ساختن ساختمان ساخته می‌شوند. فقط اگر بعداً واحدی به ساختمان اضافه شد (مثلاً یک واحد دو تا شد) از اینجا اضافه کنید."
     const val editUnit = "ویرایش واحد"
     const val occupancyHistory = "تاریخچه تعداد ساکنان"
     const val occupancyHint = "تغییر از تاریخی که وارد می‌کنید حساب می‌شود؛ ماه‌های بسته‌شده تغییر نمی‌کنند."

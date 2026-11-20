@@ -110,7 +110,8 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
     val context = LocalContext.current
     val mf = LocalMoney.current
 
-    // Recording a payment is the everyday job; adding a unit is rare, so it is a small button below.
+    // Recording a payment is the everyday job here. Units come from the setup wizard; the rare unit
+    // added later (an annex, a split flat) is in «بیشتر ← تنظیمات ← تنظیمات ساختمان».
     WithFab(S.payNow, { payingAny = true }) {
         ScreenList {
             if (collect) item {
@@ -166,7 +167,6 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
                     }
                 }
                 if (reordering) Hint(S.moveHint)
-                else if (units.isNotEmpty()) TextButton(onClick = { adding = true }) { Text("+ " + S.newUnit) }
             }
             val shown = units.filter { u ->
                 val bal = balances[u.id] ?: 0
@@ -227,7 +227,7 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
  * space or a new resident needs no other screen.
  */
 @Composable
-private fun UnitDialog(vm: AppViewModel, unit: UnitEntity?, buildingId: String, close: () -> Unit) {
+internal fun UnitDialog(vm: AppViewModel, unit: UnitEntity?, buildingId: String, close: () -> Unit) {
     val occ by vm.occupancy.collectAsState()
     val assignments by vm.assignments.collectAsState()
     val nowPeople = unit?.let { currentOccupants(occ, vm.today)[it.id] } ?: 1
