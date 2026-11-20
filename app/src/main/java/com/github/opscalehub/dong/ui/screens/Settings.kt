@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -255,6 +256,12 @@ private fun BuildingSettingsCard(vm: AppViewModel) {
                     displayCurrencyName = if (toman) S.showToman else "", displayDivisor = if (toman) 10 else 1))
             }
         }, enabled = name.isNotBlank() && digits.valid && (digits.value ?: -1) in 0..4 && (rounding.value ?: 0) >= 1) { Text(S.save) }
+        // Units are made by the setup wizard; adding one later is rare, so it lives here, not on the Units tab.
+        HorizontalDivider()
+        Hint(S.addUnitHint)
+        var addingUnit by remember { mutableStateOf(false) }
+        OutlinedButton(onClick = { addingUnit = true }) { Text(S.addUnitLater) }
+        if (addingUnit) UnitDialog(vm, null, building.id) { addingUnit = false }
     }
 }
 
