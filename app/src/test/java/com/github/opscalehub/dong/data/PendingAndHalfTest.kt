@@ -66,6 +66,22 @@ class PendingAndHalfTest {
     }
 
     @Test
+    fun `a repair recorded after the month was closed shows on the closed month's bill`() = runBlocking {
+        // The owner's case: the month closed early, the repair is recorded before the next month starts.
+        val b = fixed()
+        val aban = db.periodDao().periods(b).single()
+        r.periods.finalize(aban.id)
+        val next = SampleData.monthAfter(aban.endDate)
+        r.periods.create(b, next.name, next.start, next.end)
+        repair(b, 30_000_000, AllocationPolicy.single(Basis.Equal))
+        val units = db.buildingDao().units(b).sortedBy { it.sortOrder }
+        val bill = r.bills.bill(b, units[0].id, aban.id)
+        assertEquals(listOf("پیش‌پرداخت تعمیر آسانسور" to 10_000_000L), bill.pending)
+        assertEquals("not owed before the next month closes", 5_000_000L, bill.due)
+        assertTrue(SelfCheck.run(r, b).ok)
+    }
+
+    @Test
     fun `a unit exempt from the monthly charge still gets a bill for its pending share`() = runBlocking {
         val b = fixed(BuildingRepository.ChargePlan.Fixed(perUnit = 5_000_000, unitWeights = listOf(1, 1, 0)))
         repair(b, 9_000_000, AllocationPolicy.single(Basis.Equal))

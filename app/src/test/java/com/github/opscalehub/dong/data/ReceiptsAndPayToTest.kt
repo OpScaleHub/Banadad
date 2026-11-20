@@ -64,8 +64,8 @@ class ReceiptsAndPayToTest {
         assertTrue(rows.any { it.label == S.payAccount && it.value.contains("1111 2222 3333 4444") })
         assertTrue(rows.any { it.label == S.payHolder && it.value == "مدیر ساختمان" })
         if (closed.dueDate != null) assertTrue(rows.any { it.label == S.billDue })
-        // A settled bill does not ask for money.
-        val settled = BillShare.blocks(bill.copy(due = 0), money).filterIsInstance<Block.Row>()
+        // A settled bill with nothing coming does not ask for money.
+        val settled = BillShare.blocks(bill.copy(due = 0, pending = emptyList()), money).filterIsInstance<Block.Row>()
         assertFalse(settled.any { it.label == S.payAccount || it.label == S.billDue })
     }
 

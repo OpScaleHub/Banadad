@@ -56,7 +56,10 @@ class BillRepository(private val r: Repos) {
             adjust = since?.let { it.refunds - it.creditsAndAdjustments } ?: 0,
             dueDate = p?.dueDate?.let { Fmt.date(it, b.calendar) },
             payAccount = b.payAccount, payHolder = b.payHolder,
-            pending = p?.let { Insights.pendingComposition(d, unitId, it.id) }.orEmpty())
+            // Every open month's split bills, not only this bill's month: a bill sent right after a
+            // month was closed must still show a repair already recorded for the next one.
+            pending = d.periods.filter { it.status == PeriodStatus.DRAFT }.flatMap { Insights.pendingComposition(d, unitId, it.id) }
+                .groupBy { it.first }.map { (k, l) -> k to l.sumOf { it.second } }.filter { it.second != 0L }.sortedByDescending { it.second })
     }
 
     /** A receipt for the resident payment [entryId]. */
