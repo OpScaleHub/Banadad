@@ -125,14 +125,17 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
             if (!collect) item {
                 val d = report ?: return@item
                 val aging = Insights.aging(d, vm.today)
-                SectionCard(S.debtAging, subtitle = S.signConvention) {
+                SectionCard(S.debtAging, subtitle = if (roomyScreen()) S.signConvention else null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(money(d.balances.outstandingDebts), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                             color = if (d.balances.outstandingDebts > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(8.dp))
                         Hint("${LocalMoney.current.unitName}، ${Fmt.number(balances.values.count { it > 0 }.toLong())} ${S.debtorUnits}")
                     }
-                    val top = aging.filter { it.total > 0 }.take(5)
+                    // A short phone, or a large system font (common for older managers), shows only the
+                    // total, so the units list is on screen: height counted in text lines, not dp.
+                    val roomy = roomyScreen()
+                    val top = if (roomy) aging.filter { it.total > 0 }.take(5) else emptyList()
                     val max = top.maxOfOrNull { it.total } ?: 1
                     top.forEach { a ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -496,4 +499,11 @@ private fun UnitOpeningDialog(vm: AppViewModel, b: String, unit: UnitEntity, clo
         Hint(S.unitOpeningHint)
         OpeningUnitInput(S.amount, amount, owes) { owes = it }
     }
+}
+
+/** Room for the full debt chart above the units: ~700dp of height at the phone's font size. */
+@Composable
+private fun roomyScreen(): Boolean {
+    val c = androidx.compose.ui.platform.LocalConfiguration.current
+    return c.screenHeightDp / c.fontScale.coerceAtLeast(1f) >= 700
 }

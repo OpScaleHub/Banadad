@@ -193,7 +193,8 @@ fun DongRoot(vm: AppViewModel = viewModel()) {
                                     else nav.navigate(t.route) { popUpTo(Routes.HOME) { saveState = true }; launchSingleTop = true; restoreState = true }
                                 },
                                 icon = { Icon(t.icon, null) },
-                                label = { Text(t.label) },
+                                // One line always: with a large system font «هزینه‌ها» broke at its ZWNJ into two lines.
+                                label = { Text(t.label, maxLines = 1, softWrap = false) },
                             )
                         }
                     }
