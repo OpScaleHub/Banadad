@@ -24,6 +24,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.github.opscalehub.dong.data.SampleData
 import com.github.opscalehub.dong.data.db.CategoryEntity
 import com.github.opscalehub.dong.data.db.ChargeItemEntity
 import com.github.opscalehub.dong.data.db.ExpenseEntity
@@ -153,7 +154,12 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     val amount = rememberMoney(existing?.amountMinor)
     var supplier by remember { mutableStateOf(suppliers.firstOrNull { it.id == existing?.supplierId }) }
     var fund by remember { mutableStateOf(funds.firstOrNull { it.id == existing?.fundId }) }
-    var periodSel by remember { mutableStateOf<PeriodEntity?>(period ?: drafts.firstOrNull { (existing?.date ?: vm.today) in it.startDate..it.endDate }) }
+    // The month a bill belongs to: the open month containing its date, else the next open month
+    // (a bill that arrives after its month was closed goes to the next one, never silently nowhere).
+    fun monthFor(day: Long?): PeriodEntity? = day?.let { d -> drafts.firstOrNull { d in it.startDate..it.endDate } ?: drafts.filter { it.startDate > d }.minByOrNull { it.startDate } }
+    var periodSel by remember { mutableStateOf<PeriodEntity?>(period ?: monthFor(existing?.date ?: vm.today)) }
+    var periodPicked by remember { mutableStateOf(existing != null) }
+    LaunchedEffect(date.value, drafts.map { it.id }) { if (!periodPicked) periodSel = monthFor(date.value) }
     var docRef by rememberSaveable { mutableStateOf(existing?.documentRef ?: "") }
     var notes by rememberSaveable { mutableStateOf(existing?.notes ?: "") }
     // Most bills are recorded when they are paid from the building's money.
@@ -223,7 +229,7 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                 TextButton(onClick = { details = !details }) { Text(if (details) S.fewerDetails else S.moreDetails) }
                 if (details) {
                     DateInput(S.date, date, vm.today)
-                    Dropdown(S.period, listOf<PeriodEntity?>(null) + drafts, periodSel, { periodSel = it }, { it?.name ?: S.noPeriodAssigned })
+                    Dropdown(S.period, listOf<PeriodEntity?>(null) + drafts, periodSel, { periodSel = it; periodPicked = true }, { it?.name ?: S.noPeriodAssigned })
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Dropdown(S.supplier, listOf<SupplierEntity?>(null) + suppliers, supplier, { supplier = it }, { it?.name ?: S.none }, Modifier.weight(1f))
                         TextButton(onClick = { addingSupplier = true }) { Text(S.add) }
@@ -276,6 +282,22 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                 val cat = category
                 if (cat != null && pol != null && pol != cat.policy()) {
                     com.github.opscalehub.dong.ui.SwitchRow(S.saveAsDefault.format(cat.name), saveAsDefault, { saveAsDefault = it })
+                }
+                // Units are charged a bill when its month closes: say which month, and never let a
+                // bill split among units sit outside every month (it would never be charged).
+                if (pol?.fundOnly == false) {
+                    val sel = periodSel
+                    if (sel != null) Hint(S.chargedWithMonth.format(sel.name), MaterialTheme.colorScheme.primary)
+                    else {
+                        Hint(S.noOpenMonthWarning, MaterialTheme.colorScheme.error)
+                        val next = SampleData.monthAfter(periods.maxOfOrNull { it.endDate })
+                        OutlinedButton(onClick = {
+                            vm.run {
+                                val id = vm.repos.periods.create(building.id, next.name, next.start, next.end)
+                                periodSel = vm.repos.db.periodDao().period(id); periodPicked = true
+                            }
+                        }) { Text(S.startMonthForBill.format(next.name)) }
+                    }
                 }
             }
         }

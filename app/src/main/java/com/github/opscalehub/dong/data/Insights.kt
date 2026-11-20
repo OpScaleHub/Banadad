@@ -206,10 +206,9 @@ object Insights {
     fun pendingComposition(d: ReportData, unitId: String, periodId: String): List<Pair<String, Long>> {
         val p = d.periods.firstOrNull { it.id == periodId } ?: return emptyList()
         if (p.status != com.github.opscalehub.dong.data.db.PeriodStatus.DRAFT) return emptyList()
-        // Charges posted on the first day (see PeriodRepository.postAdvance) are already in the balance.
-        val advanced = if (postedCharges(d, periodId).any { it.third != 0L })
-            d.chargeItems.filter { it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }.map { it.id }.toSet()
-        else emptySet()
+        // The monthly charge is posted on the month's first day (see PeriodRepository.postAdvance):
+        // already in the balance, or, for a month made ahead of time, the next regular charge, not an extra.
+        val advanced = d.chargeItems.filter { it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }.map { it.id }.toSet()
         val lines = d.periodResults[periodId]?.lines.orEmpty()
             .filter { it.unitId == unitId && !(it.sourceType == com.github.opscalehub.dong.domain.period.SourceType.CHARGE_ITEM && it.sourceId in advanced) }
         return lines.groupBy { d.sourceName(it.sourceId) }.map { (k, l) -> k to l.sumOf { it.amount } }
