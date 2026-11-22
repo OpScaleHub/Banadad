@@ -51,6 +51,11 @@ class MonthlyChargeLaterTest {
         assertTrue(isBilled(d, after))
         assertEquals(3, billedUnits(d, after.id).size)
         assertTrue(SelfCheck.run(r, b).ok)
+        // A unit with past debt pays: the payment clears the old debt first, and the app says so.
+        r.finance.setUnitOpening(b, units[1].id, 4_000_000)
+        r.finance.receivePayment(b, units[1].id, 5_000_000, cash, azar1)
+        val d2 = ReportRepository(r).load(b)
+        assertEquals(4_000_000L, Insights.paidToOlderDebt(d2, after.id))
 
         // Only once; the amount is changed on the monthly charge page instead.
         try { r.buildings.setMonthlyCharge(b, BuildingRepository.ChargePlan.Fixed(perUnit = 1_000_000)); fail() } catch (e: OpException) { }
