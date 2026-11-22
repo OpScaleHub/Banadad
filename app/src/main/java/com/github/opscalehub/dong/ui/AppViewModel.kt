@@ -122,6 +122,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     repos.periods.ensureCurrentMonth(id)
                     repos.periods.refreshAdvances(id)
+                    // Old split bills in a building with a monthly charge go to the fund (told on Home).
+                    val moved = repos.buildings.alignBillsWithMonthlyCharge(id)
+                    if (moved > 0) ui.noteBillsMoved(id, moved)
                 } catch (e: Exception) {
                     Log.w("Dang", "prepaid month upkeep failed", e)
                 }

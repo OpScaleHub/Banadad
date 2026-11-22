@@ -160,4 +160,24 @@ class SpecialChargeTest {
         assertTrue(db.expenseDao().categories(b).filter { it.active }.all { r.expenses.allowedWithMonthlyCharge(b, it.id, AllocationPolicy.decode(it.defaultPolicyJson)) })
         assertTrue(SelfCheck.run(r, b).ok)
     }
+
+    @Test
+    fun `an old split bill in a building with a monthly charge is moved to the fund once, closed months untouched`() = runBlocking {
+        // A 0.10.x book: a monthly charge, and a bill in the open month split among units on top of it.
+        val b = fixed()
+        val e = bill(b, "تعمیرات", 9_000_000)
+        db.expenseDao().updateExpense(db.expenseDao().expense(e.id)!!.copy(policyJson = AllocationPolicy.single(Basis.Equal).encode()))
+        val p = db.periodDao().periods(b).single()
+        assertEquals(listOf("تعمیرات" to 3_000_000L), r.bills.bill(b, units(b)[0].id, p.id).pending)
+        assertEquals(1, r.buildings.alignBillsWithMonthlyCharge(b))
+        assertEquals("idempotent", 0, r.buildings.alignBillsWithMonthlyCharge(b))
+        assertTrue(r.bills.bill(b, units(b)[0].id, p.id).pending.isEmpty())
+        r.periods.finalize(p.id)
+        assertEquals("only the monthly charge", listOf(5_000_000L, 5_000_000L, 5_000_000L), owed(b))
+        assertTrue(SelfCheck.run(r, b).ok)
+        // A building that splits its actual bills (no monthly charge) is left alone.
+        val split = r.buildings.setup("قبض", "", true, 1000, drafts, 0, 0, BuildingRepository.ChargePlan.SplitBills)
+        bill(split, "تعمیرات", 9_000_000, AllocationPolicy.single(Basis.Equal))
+        assertEquals(0, r.buildings.alignBillsWithMonthlyCharge(split))
+    }
 }

@@ -36,7 +36,19 @@ class UiPrefs(context: Context) {
         p.edit().putStringSet(OPENING_SEEN, v).apply(); _openingSeen.value = v
     }
 
+    /** Per building: bills the app moved to the fund (old split bills in a building with a monthly charge), until dismissed. */
+    private val _billsMoved = MutableStateFlow(readMoved())
+    val billsMoved: StateFlow<Map<String, Int>> = _billsMoved.asStateFlow()
+    private fun readMoved(): Map<String, Int> = p.getStringSet(BILLS_MOVED, emptySet()).orEmpty()
+        .mapNotNull { e -> e.substringBefore('=').takeIf { it.isNotEmpty() }?.let { it to (e.substringAfter('=').toIntOrNull() ?: 0) } }.toMap()
+    private fun writeMoved(m: Map<String, Int>) {
+        p.edit().putStringSet(BILLS_MOVED, m.filterValues { it > 0 }.map { (k, v) -> "$k=$v" }.toSet()).apply(); _billsMoved.value = m.filterValues { it > 0 }
+    }
+    fun noteBillsMoved(buildingId: String, count: Int) = writeMoved(_billsMoved.value + (buildingId to (_billsMoved.value[buildingId] ?: 0) + count))
+    fun dismissBillsMoved(buildingId: String) = writeMoved(_billsMoved.value - buildingId)
+
     companion object {
+        private const val BILLS_MOVED = "billsMoved"
         private const val OPENING_SEEN = "openingSeen"
         private const val LAST_BACKUP = "lastBackupDay"
         private const val BACKUP_SNOOZE = "backupSnoozeDay"
