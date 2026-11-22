@@ -236,29 +236,83 @@ class BuildingRepository(private val r: Repos) {
         }
     }
 
+    /** The monthly charge items managed by [monthlyPlan]: active, charged in advance, by rate, of type «شارژ ماهانه». */
+    private suspend fun planItems(buildingId: String): List<ChargeItemEntity> {
+        val cat = r.db.expenseDao().categories(buildingId).firstOrNull { !it.active && it.name == MONTHLY_CHARGE } ?: return emptyList()
+        return r.db.expenseDao().chargeItems(buildingId).filter { it.categoryId == cat.id && it.inAdvance && it.mode == ChargeMode.RATE }
+    }
+
+    private enum class Part { BASE, PEOPLE, AREA }
+
+    private fun partOf(c: ChargeItemEntity): Part? = when (AllocationPolicy.decode(c.policyJson).components.singleOrNull()?.basis) {
+        Basis.Equal, is Basis.Weighted -> Part.BASE
+        Basis.Occupants -> Part.PEOPLE
+        Basis.Area -> Part.AREA
+        else -> null
+    }
+
     /**
-     * Gives a building set up to split its bills a fixed monthly charge (testers chose the wrong
-     * model in the wizard and had no way back). From the first open month on, units owe it from
-     * the month's first day and pay by the 10th, like a building set up this way; closed months
-     * are untouched. Fails if the building already has a monthly charge (its amount is edited instead).
+     * The building's monthly charge as the three parts the manager sets: a fixed amount per unit
+     * (with per-unit multipliers), per resident, per m². Null when the building has none.
      */
-    suspend fun setMonthlyCharge(buildingId: String, plan: ChargePlan.Fixed): Unit = r.tx {
+    suspend fun monthlyPlan(buildingId: String): ChargePlan.Fixed? {
+        val items = planItems(buildingId).filter { it.active }
+        if (items.isEmpty()) return null
+        fun rate(p: Part) = items.firstOrNull { partOf(it) == p }?.amountMinor ?: 0L
+        val base = items.firstOrNull { partOf(it) == Part.BASE }
+        val weighted = base?.let { AllocationPolicy.decode(it.policyJson).components.single().basis as? Basis.Weighted }
+        val ids = dao.units(buildingId).sortedBy { it.sortOrder }.map { it.id }
+        return ChargePlan.Fixed(rate(Part.BASE), rate(Part.PEOPLE), rate(Part.AREA),
+            unitWeights = weighted?.let { w -> ids.map { w.weights[it] ?: 0L } }, weightScale = weighted?.scale ?: 1)
+    }
+
+    /**
+     * Sets or changes the monthly charge: any mix of a fixed amount per unit (with multipliers),
+     * per resident and per m² (owner's report: the wizard had the mix, but after setup only one
+     * amount could be edited and nothing added). Applies from the open month on: its first-day
+     * charge is reversed and posted again; closed months keep what they charged. A building that
+     * split its bills becomes a prepaid one (open months due by the 10th). Other charges (e.g. a
+     * reserve contribution) are not touched.
+     */
+    suspend fun saveMonthlyCharge(buildingId: String, plan: ChargePlan.Fixed): Unit = r.tx {
         dao.building(buildingId) ?: fail(OpError.NOT_FOUND)
-        if (r.periods.prepaid(buildingId)) fail(OpError.INVALID_INPUT, "already has a monthly charge")
-        val units = dao.units(buildingId)
+        val units = dao.units(buildingId).sortedBy { it.sortOrder }
         val rates = listOf(plan.perUnit, plan.perPerson, plan.perM2)
         if (rates.any { it < 0 } || rates.sum() <= 0) fail(OpError.INVALID_AMOUNT, "monthly charge")
         if (plan.perM2 > 0 && units.any { it.active && it.areaCentiM2 <= 0 }) fail(OpError.INVALID_INPUT, "area")
         plan.unitWeights?.let { w -> if (w.size != units.size || w.any { it < 0 } || w.all { it == 0L } || plan.weightScale !in 1..2) fail(OpError.INVALID_INPUT, "multipliers") }
+        val wasPrepaid = r.periods.prepaid(buildingId)
         val periods = r.db.periodDao().periods(buildingId)
         val drafts = periods.filter { it.status == com.github.opscalehub.dong.data.db.PeriodStatus.DRAFT }
         val from = drafts.minOfOrNull { it.startDate } ?: periods.maxOfOrNull { it.endDate }?.plus(1) ?: SampleData.month(r.clock.today()).start
-        addMonthlyCharge(buildingId, plan, from)
+        val existing = planItems(buildingId)
+        if (existing.isEmpty()) addMonthlyCharge(buildingId, plan, from)
+        else {
+            val ids = units.map { it.id }
+            val bases = mapOf(
+                Part.BASE to (plan.unitWeights?.let { w -> Basis.Weighted(ids.zip(w).toMap(), plan.weightScale) } ?: Basis.Equal),
+                Part.PEOPLE to Basis.Occupants, Part.AREA to Basis.Area)
+            val wanted = mapOf(Part.BASE to plan.perUnit, Part.PEOPLE to plan.perPerson, Part.AREA to plan.perM2)
+            val count = wanted.values.count { it > 0 }
+            val catId = existing.first().categoryId
+            val fundId = existing.first().fundId
+            Part.entries.forEach { part ->
+                val rate = wanted.getValue(part)
+                val label = if (count == 1) MONTHLY_CHARGE else "$MONTHLY_CHARGE — ${when (part) { Part.BASE -> S_BASE; Part.PEOPLE -> S_PEOPLE; Part.AREA -> S_AREA }}"
+                val policy = AllocationPolicy.single(bases.getValue(part)).encode()
+                val item = existing.firstOrNull { partOf(it) == part }
+                when {
+                    rate > 0 && item != null -> r.expenses.saveChargeItem(item.copy(name = label, amountMinor = rate, policyJson = policy, active = true))
+                    rate > 0 -> r.expenses.saveChargeItem(ChargeItemEntity(newId(), buildingId, label, catId, fundId, ChargeMode.RATE, rate, policy, activeFrom = from, inAdvance = true))
+                    item != null && item.active -> r.expenses.saveChargeItem(item.copy(active = false))
+                }
+            }
+        }
         r.journal.audit(buildingId, "SET_MONTHLY_CHARGE", "building", buildingId,
-            "شارژ ماهانه از ${Fmt.date(from)}: ${listOf(plan.perUnit, plan.perPerson, plan.perM2).joinToString(" / ") { Fmt.money(it) }}")
-        // Open months now follow the prepaid rule: due by the 10th, charged on day 1.
+            "شارژ ماهانه از ${Fmt.date(from)}: هر واحد ${Fmt.money(plan.perUnit)}، هر نفر ${Fmt.money(plan.perPerson)}، هر متر ${Fmt.money(plan.perM2)}")
+        // A building that split its bills now charges in advance: open months are due by the 10th.
         drafts.forEach { p ->
-            r.db.periodDao().updatePeriod(p.copy(dueDate = r.periods.defaultDue(buildingId, p.startDate, p.endDate)))
+            if (!wasPrepaid) r.db.periodDao().updatePeriod(p.copy(dueDate = r.periods.defaultDue(buildingId, p.startDate, p.endDate)))
             r.periods.postAdvance(p.id)
         }
         r.periods.ensureCurrentMonth(buildingId)
