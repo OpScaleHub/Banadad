@@ -141,7 +141,8 @@ fun SummaryShareButton(vm: AppViewModel, building: BuildingEntity, p: PeriodEnti
     val context = LocalContext.current
     val mf = LocalMoney.current
     var open by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = { open = true }, Modifier.fillMaxWidth(), enabled = p.status == PeriodStatus.FINALIZED) { Text(S.shareSummary) }
+    // Also during the month: residents can see where their money went without anyone being charged.
+    OutlinedButton(onClick = { open = true }, Modifier.fillMaxWidth()) { Text(S.shareSummary) }
     if (open) {
         var units by remember { mutableStateOf(true) }
         var debts by remember { mutableStateOf(false) }

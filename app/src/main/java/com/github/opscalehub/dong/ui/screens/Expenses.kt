@@ -165,8 +165,11 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
     var addingSupplier by remember { mutableStateOf(false) }
     var voiding by remember { mutableStateOf(false) }
     var paying by remember { mutableStateOf(false) }
+    // A monthly charge plan (the «شارژ ماهانه» items): bills are then paid from the fund it fills.
+    // A reserve-only contribution (the year demo) is not one: such buildings split their actual bills.
     val prepaidItems by vm.chargeItems.collectAsState()
-    val prepaid = prepaidItems.any { it.active && it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }
+    val planCat = categories.firstOrNull { !it.active && it.name == com.github.opscalehub.dong.data.MONTHLY_CHARGE }?.id
+    val prepaid = prepaidItems.any { it.active && it.inAdvance && it.categoryId == planCat && it.mode == com.github.opscalehub.dong.domain.model.ChargeMode.RATE }
     val paid by derived(vm, existing?.id) { existing?.let { vm.repos.expenses.paid(it.id) } ?: 0L }
     val payments by derived(vm, existing?.id) { existing?.let { vm.repos.db.financeDao().entriesForExpense(it.id) } ?: emptyList() }
 
@@ -241,22 +244,26 @@ fun ExpenseScreen(vm: AppViewModel, nav: NavController, expenseId: String) {
                 // With a fixed monthly charge the first question is whether this bill is charged at
                 // all: normally not (the charge covers it); only special bills go to the units.
                 if (prepaid) {
+                    // Bills are paid from the fund the monthly charge fills; never charged to the units
+                    // again. Only water may follow each unit's own meter (charging by use).
+                    val meterWater = category?.isWater == true && meters.isNotEmpty()
+                    val legacySplit = pol != null && !pol.fundOnly && !(category?.isWater == true && pol.components.all { it.basis is Basis.Consumption })
                     SplitOption(S.coveredByCharge, S.coveredByChargeHint, pol?.fundOnly == true) { policy.reset(AllocationPolicy.FUND_ONLY); policyTouched = true }
-                    SplitOption(S.chargeExtra, S.chargeExtraHint, pol != null && !pol.fundOnly) {
-                        if (pol?.fundOnly != false) {
-                            val own = category?.policy()?.takeIf { !it.fundOnly }
-                            val meterWater = category?.isWater == true && meters.isNotEmpty()
-                            policy.reset(own ?: if (meterWater) com.github.opscalehub.dong.data.METERED_WATER else AllocationPolicy.single(Basis.Equal))
-                            policyTouched = true
-                        }
+                    if (meterWater) SplitOption(S.splitWater, S.waterByMeterOnCharge, pol != null && !pol.fundOnly && !legacySplit) {
+                        policy.reset(com.github.opscalehub.dong.data.METERED_WATER); policyTouched = true
                     }
-                    if (pol?.fundOnly != false) return@SectionCard
-                    Text(S.howToSplitExtra, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+                    // A bill saved before this rule, split among units on top of the charge.
+                    if (legacySplit) {
+                        Hint(S.legacySplitWarning, MaterialTheme.colorScheme.error)
+                        OutlinedButton(onClick = { policy.reset(AllocationPolicy.FUND_ONLY); policyTouched = true }) { Text(S.moveToFund) }
+                    }
+                    Hint(S.specialChargeInstead)
+                    TextButton(onClick = { nav.navigate(Routes.CHARGE_ITEMS) }) { Text(S.issueSpecialCharge) }
+                    return@SectionCard
                 }
                 // Simple mode: a few named choices with what each one means. Advanced mode adds the
                 // last-used policy and the full formula editor.
                 val options = plainSplits(meters.isNotEmpty() && category?.isWater == true, spaces.isNotEmpty(), chargeItems.any { it.active })
-                    .filter { !prepaid || !it.third.fundOnly }
                 // Multipliers: a weighted split edited as «۱×، ۲×…» per unit (e.g. elevator by floor).
                 val active = units.filter { it.active }.sortedBy { it.sortOrder }
                 val currentBasis = pol?.components?.singleOrNull()?.basis as? Basis.Weighted
@@ -510,6 +517,7 @@ fun ChargeItemsScreen(vm: AppViewModel) {
                     Button(onClick = { planning = true }, Modifier.fillMaxWidth(), enabled = loaded != null) { Text(if (p == null) S.setMonthlyCharge else S.changeMonthlyCharge) }
                 }
             }
+            item { SpecialChargesCard(vm, building) }
             items(others.size) { i ->
                 val c = others[i]
                 SectionCard {
@@ -663,9 +671,11 @@ fun MonthlyChargeDialog(vm: AppViewModel, buildingId: String, current: BuildingR
     }
     val mf = LocalMoney.current
     fun plan(): BuildingRepository.ChargePlan.Fixed? {
-        val fields = listOf(perUnit, perPerson, perM2)
-        if (fields.any { !it.valid }) return null
-        val u = perUnit.value ?: 0; val pp = perPerson.value ?: 0; val m2 = if (areasKnown) perM2.value ?: 0 else 0
+        // An empty part means the building does not charge it (0); only a typo makes the form invalid.
+        fun part(f: com.github.opscalehub.dong.ui.NumberFieldState): Long? = if (f.text.isBlank()) 0L else f.value
+        val u = part(perUnit) ?: return null
+        val pp = part(perPerson) ?: return null
+        val m2 = if (areasKnown) part(perM2) ?: return null else 0L
         if (u < 0 || pp < 0 || m2 < 0 || u + pp + m2 <= 0) return null
         val w = if (differ && u > 0) com.github.opscalehub.dong.ui.halvesToWeights(rows.indices.map { halves.getOrElse(it) { 2L } }) else null
         if (w != null && w.first.all { it == 0L }) return null
@@ -673,7 +683,10 @@ fun MonthlyChargeDialog(vm: AppViewModel, buildingId: String, current: BuildingR
     }
     val p = plan()
     FormDialog(if (current == null) S.setMonthlyCharge else S.changeMonthlyCharge, close, {
-        vm.run(S.saved, onSuccess = close) { vm.repos.buildings.saveMonthlyCharge(buildingId, p!!) }
+        vm.run(onSuccess = close) {
+            val moved = vm.repos.buildings.saveMonthlyCharge(buildingId, p!!)
+            vm.message(if (moved > 0) S.billsMovedToFund.format(Fmt.number(moved.toLong())) else S.saved)
+        }
     }, canConfirm = p != null && p != current) {
         Hint(if (current == null) S.setMonthlyChargeHint else S.chargeChangeNote)
         Hint(S.planPartsHint)
@@ -693,6 +706,76 @@ fun MonthlyChargeDialog(vm: AppViewModel, buildingId: String, current: BuildingR
             val people = currentOccupants(occ, vm.today)[u.id] ?: 0
             val share = p.perUnit * (p.unitWeights?.firstOrNull() ?: p.weightScale) / p.weightScale + p.perPerson * people + p.perM2 * u.areaCentiM2 / 100
             Text(S.exampleShare.format(Fmt.ltr(u.label), mf.withUnit(share)), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+/** Issued special charges with «ابطال», and the button to issue one. */
+@Composable
+private fun SpecialChargesCard(vm: AppViewModel, building: com.github.opscalehub.dong.data.db.BuildingEntity) {
+    val entries by vm.entries.collectAsState()
+    val list by derived(vm, building.id, entries.size) { vm.repos.special.list(building.id) }
+    var issuing by remember { mutableStateOf(false) }
+    var cancelling by remember { mutableStateOf<com.github.opscalehub.dong.data.SpecialCharge?>(null) }
+    val mf = LocalMoney.current
+    SectionCard(S.specialCharge) {
+        Hint(S.specialChargeHint)
+        list.orEmpty().forEach { sc ->
+            androidx.compose.material3.HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(sc.title, style = MaterialTheme.typography.titleMedium)
+                    Hint("${Fmt.date(sc.date, building.calendar)}، ${mf.withUnit(sc.total)}، ${if (sc.cancelled) S.specialCancelled else S.specialIssued}")
+                }
+                if (!sc.cancelled) TextButton(onClick = { cancelling = sc }) { Text(S.cancelSpecial, color = MaterialTheme.colorScheme.error) }
+            }
+        }
+        Button(onClick = { issuing = true }, Modifier.fillMaxWidth()) { Text(S.issueSpecialCharge) }
+    }
+    if (issuing) SpecialChargeDialog(vm, building.id) { issuing = false }
+    cancelling?.let { sc ->
+        ReasonDialog("${S.cancelSpecial} «${sc.title}»", S.cancelSpecialHint, { cancelling = null }) { reason ->
+            vm.run(S.done, onSuccess = { cancelling = null }) { vm.repos.special.cancel(building.id, sc.entryId, reason) }
+        }
+    }
+}
+
+/**
+ * «صدور شارژ فوق‌العاده»: title, total and how it is split (equally, per resident, per m², or
+ * per-unit multipliers with معاف/½…۴). Shows each unit's share before it is issued.
+ */
+@Composable
+private fun SpecialChargeDialog(vm: AppViewModel, buildingId: String, close: () -> Unit) {
+    val units by vm.units.collectAsState()
+    val rows = units.filter { it.active }.sortedBy { it.sortOrder }
+    val areasKnown = rows.all { it.areaCentiM2 > 0 }
+    var title by remember { mutableStateOf("") }
+    val amount = rememberMoney(null)
+    var policy by remember { mutableStateOf(AllocationPolicy.single(Basis.Equal)) }
+    val mf = LocalMoney.current
+    val amt = amount.value
+    val preview by derived(vm, amt, policy) { if (amt == null || amt <= 0) null else vm.repos.special.preview(buildingId, amt, policy) }
+    val ok = title.isNotBlank() && amt != null && amt > 0 && preview?.let { it.valid && it.allocatedTotal == amt } == true
+    FormDialog(S.issueSpecialCharge, close, {
+        vm.run(S.saved, onSuccess = close) { vm.repos.special.issue(buildingId, title, amt!!, policy) }
+    }, canConfirm = ok) {
+        Hint(S.specialChargeHint)
+        TextInput(S.specialTitle, title, { title = it })
+        NumberInput(S.specialTotal, amount)
+        val weighted = policy.components.singleOrNull()?.basis as? Basis.Weighted
+        SplitOption(S.splitEqual, S.splitEqualHint, policy == AllocationPolicy.single(Basis.Equal)) { policy = AllocationPolicy.single(Basis.Equal) }
+        SplitOption(S.splitPeople, S.splitPeopleHint, policy == AllocationPolicy.single(Basis.Occupants)) { policy = AllocationPolicy.single(Basis.Occupants) }
+        if (areasKnown) SplitOption(S.splitArea, S.splitAreaHint, policy == AllocationPolicy.single(Basis.Area)) { policy = AllocationPolicy.single(Basis.Area) }
+        SplitOption(S.splitWeighted, S.splitWeightedHint, weighted != null) {
+            if (weighted == null) policy = AllocationPolicy.single(Basis.Weighted(rows.associate { it.id to 1L }))
+        }
+        if (weighted != null) com.github.opscalehub.dong.ui.MultiplierEditor(
+            rows.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${Fmt.ltr(it.label)} (${S.floor} ${Fmt.number(it.floor.toLong())})", it.floor) },
+            rows.map { u -> weighted.weights[u.id]?.let { com.github.opscalehub.dong.ui.weightToHalves(it, weighted.scale) } ?: 2L },
+        ) { h -> policy = AllocationPolicy.single(com.github.opscalehub.dong.ui.weightedFromHalves(rows.map { it.id }, h)) }
+        preview?.let { pv ->
+            if (!pv.valid) Hint(S.cannotSplit, MaterialTheme.colorScheme.error)
+            else rows.forEach { u -> KeyValue("${S.unit} ${Fmt.ltr(u.label)}", mf.format(pv.shares[u.id] ?: 0)) }
         }
     }
 }

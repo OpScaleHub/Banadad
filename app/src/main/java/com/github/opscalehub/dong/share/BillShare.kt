@@ -40,6 +40,8 @@ data class Bill(
      * prepay), by description. Not in [due]; shown apart in amber so residents can pay ahead.
      */
     val pending: List<Pair<String, Long>> = emptyList(),
+    /** Special charges («شارژ فوق‌العاده») issued since the month began, by title; already in [due]. */
+    val special: List<Pair<String, Long>> = emptyList(),
 ) {
     val pendingTotal: Long get() = pending.sumOf { it.second }
 }
@@ -146,7 +148,12 @@ object BillShare {
             add(Block.Row(S.total, money.format(bill.lines.sumOf { it.second }), bold = true))
             add(Block.Rule)
         }
-        // previous + this month + later + adjust − paid = due, so the image always adds up.
+        if (bill.special.isNotEmpty()) {
+            add(Block.Section(S.specialCharge))
+            bill.special.forEach { (k, v) -> add(Block.Row(k, money.format(v))) }
+            add(Block.Rule)
+        }
+        // previous + this month + special + later + adjust − paid = due, so the image always adds up.
         add(Block.Row(S.billPrevious, money.format(bill.previous)))
         if (bill.later != 0L) add(Block.Row(S.billLater, money.format(bill.later)))
         if (bill.adjust != 0L) add(Block.Row(S.billAdjust, com.github.opscalehub.dong.i18n.Fmt.signed(bill.adjust > 0, money.format(kotlin.math.abs(bill.adjust)))))

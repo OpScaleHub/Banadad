@@ -13,6 +13,7 @@ import com.github.opscalehub.dong.domain.ledger.EntryType
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -85,13 +86,19 @@ class PrepaidAndVoidTest {
     }
 
     @Test
-    fun `a bill chosen to be charged separately is added at closing on top of the monthly charge`() = runBlocking {
+    fun `with a monthly charge a bill is never charged to the units again, only water by meter`() = runBlocking {
+        // Owners'-association practice: bills are paid from the fund the monthly charge fills.
         val b = fixed()
-        bill(b, "تعمیرات", 3_000_000, AllocationPolicy.single(Basis.Equal))
+        try { bill(b, "تعمیرات", 3_000_000, AllocationPolicy.single(Basis.Equal)); fail("split on top of the charge") } catch (e: OpException) {
+            assertEquals(OpError.SPLIT_ON_MONTHLY_CHARGE, e.code)
+        }
+        bill(b, "تعمیرات", 3_000_000)   // the type's default: from the fund
         r.periods.finalize(db.periodDao().periods(b).single().id)
-        assertEquals(listOf(6_000_000L, 6_000_000L, 6_000_000L), owed(b))
-        val charges = db.financeDao().entries(b).filter { it.type == EntryType.CHARGE }.sortedBy { it.entryDate }
-        assertEquals(listOf(aban, Jalali.toEpochDay(1405, 8, 30)), charges.map { it.entryDate })
+        assertEquals(listOf(5_000_000L, 5_000_000L, 5_000_000L), owed(b))
+        // Water split by each unit's own meter is charging by use, not a second charge.
+        val water = db.expenseDao().categories(b).first { it.isWater }
+        assertTrue(r.expenses.allowedWithMonthlyCharge(b, water.id, com.github.opscalehub.dong.data.METERED_WATER))
+        assertFalse(r.expenses.allowedWithMonthlyCharge(b, water.id, AllocationPolicy.single(Basis.Equal)))
     }
 
     @Test

@@ -56,12 +56,27 @@ class ExpenseRepository(private val r: Repos) {
         if (p.status == PeriodStatus.FINALIZED) fail(OpError.PERIOD_FINALIZED)
     }
 
+    /**
+     * Owners'-association practice (and the Iranian «شارژ» model): where units pay a monthly charge,
+     * the building's bills are paid from the fund that charge fills; they are not charged to the
+     * units again. The one exception is water split by each unit's own meter (charging by use). A
+     * big job the units must pay for on top is a «شارژ فوق‌العاده» ([SpecialChargeRepository]), not a
+     * bill flag. Buildings without a monthly charge split their actual bills (the «تقسیم قبض‌ها» model).
+     */
+    suspend fun allowedWithMonthlyCharge(buildingId: String, categoryId: String, policy: AllocationPolicy): Boolean {
+        if (policy.fundOnly) return true
+        if (r.buildings.monthlyPlan(buildingId) == null) return true
+        val water = dao.category(categoryId)?.isWater == true
+        return water && policy.components.isNotEmpty() && policy.components.all { it.basis is com.github.opscalehub.dong.domain.allocation.Basis.Consumption }
+    }
+
     /** Records an expense (incurred → payable). Optionally pays it at once from [payFromCashId]. */
     suspend fun create(e: ExpenseEntity, payFromCashId: String? = null, paymentReference: String = ""): String = r.tx {
         if (e.amountMinor == 0L) fail(OpError.INVALID_AMOUNT)
         if (e.description.isBlank()) fail(OpError.INVALID_INPUT, "description")
         dao.category(e.categoryId) ?: fail(OpError.NOT_FOUND, "category")
-        AllocationPolicy.decode(e.policyJson)
+        val policy = AllocationPolicy.decode(e.policyJson)
+        if (!allowedWithMonthlyCharge(e.buildingId, e.categoryId, policy)) fail(OpError.SPLIT_ON_MONTHLY_CHARGE)
         requireDraftPeriod(e.periodId)
         val entry = ledger {
             PostingRules.expenseIncurred(e.amountMinor, e.fundId, e.categoryId, e.supplierId)
@@ -78,7 +93,9 @@ class ExpenseRepository(private val r: Repos) {
         requireDraftPeriod(old.periodId)
         requireDraftPeriod(e.periodId)
         if (e.amountMinor == 0L || e.description.isBlank()) fail(OpError.INVALID_INPUT)
-        AllocationPolicy.decode(e.policyJson)
+        val policy = AllocationPolicy.decode(e.policyJson)
+        // An older bill keeps its split when only other fields change; a new split is refused.
+        if (e.policyJson != old.policyJson && !allowedWithMonthlyCharge(e.buildingId, e.categoryId, policy)) fail(OpError.SPLIT_ON_MONTHLY_CHARGE)
         val financial = old.amountMinor != e.amountMinor || old.fundId != e.fundId || old.categoryId != e.categoryId ||
             old.supplierId != e.supplierId || old.date != e.date
         var entryId = old.journalEntryId

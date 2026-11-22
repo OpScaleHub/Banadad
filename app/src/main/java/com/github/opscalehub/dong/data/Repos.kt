@@ -47,6 +47,7 @@ class Repos(val db: DongDatabase, val clock: Clock = SystemClock) {
     val finance = FinanceRepository(this)
     val periods = PeriodRepository(this)
     val bills = BillRepository(this)
+    val special = SpecialChargeRepository(this)
     internal val journal = JournalWriter(this)
 
     suspend fun <T> tx(block: suspend () -> T): T = db.withTransaction(block)
@@ -274,7 +275,7 @@ class BuildingRepository(private val r: Repos) {
      * split its bills becomes a prepaid one (open months due by the 10th). Other charges (e.g. a
      * reserve contribution) are not touched.
      */
-    suspend fun saveMonthlyCharge(buildingId: String, plan: ChargePlan.Fixed): Unit = r.tx {
+    suspend fun saveMonthlyCharge(buildingId: String, plan: ChargePlan.Fixed): Int = r.tx {
         dao.building(buildingId) ?: fail(OpError.NOT_FOUND)
         val units = dao.units(buildingId).sortedBy { it.sortOrder }
         val rates = listOf(plan.perUnit, plan.perPerson, plan.perM2)
@@ -310,12 +311,28 @@ class BuildingRepository(private val r: Repos) {
         }
         r.journal.audit(buildingId, "SET_MONTHLY_CHARGE", "building", buildingId,
             "شارژ ماهانه از ${Fmt.date(from)}: هر واحد ${Fmt.money(plan.perUnit)}، هر نفر ${Fmt.money(plan.perPerson)}، هر متر ${Fmt.money(plan.perM2)}")
+        // With a monthly charge, bills are paid from the fund: expense types default to it, and bills
+        // already entered in an open month and split among units are moved to it (else closing the
+        // month would charge them on top of the charge). Closed months are not touched.
+        val exp = r.db.expenseDao()
+        exp.categories(buildingId).filter { it.active }.forEach { c ->
+            if (!r.expenses.allowedWithMonthlyCharge(buildingId, c.id, AllocationPolicy.decode(c.defaultPolicyJson)))
+                exp.upsertCategory(c.copy(defaultPolicyJson = AllocationPolicy.FUND_ONLY.encode()))
+        }
+        var moved = 0
+        drafts.forEach { p ->
+            exp.activeExpensesForPeriod(p.id).filter { !r.expenses.allowedWithMonthlyCharge(buildingId, it.categoryId, AllocationPolicy.decode(it.policyJson)) }.forEach {
+                r.expenses.update(it.copy(policyJson = AllocationPolicy.FUND_ONLY.encode()), "شارژ ماهانه تعیین شد؛ از صندوق پرداخت می‌شود")
+                moved++
+            }
+        }
         // A building that split its bills now charges in advance: open months are due by the 10th.
         drafts.forEach { p ->
             if (!wasPrepaid) r.db.periodDao().updatePeriod(p.copy(dueDate = r.periods.defaultDue(buildingId, p.startDate, p.endDate)))
             r.periods.postAdvance(p.id)
         }
         r.periods.ensureCurrentMonth(buildingId)
+        moved
     }
 
     private data class Cat(val name: String, val policy: AllocationPolicy, val fund: String, val water: Boolean = false, val active: Boolean = true)

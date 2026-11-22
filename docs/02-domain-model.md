@@ -97,6 +97,38 @@ transfer is never an expense (equity → equity); an expense allocated to
 residents nets to zero in the fund (expense + income) while a fund-borne
 expense reduces the fund.
 
+## 3a. How a building charges its units (0.11)
+
+Owners'-association accounting and Iranian building practice agree on one model, and Dang follows it:
+
+1. **Units owe charges; bills are paid from the fund.** The monthly charge («شارژ ماهانه») is what
+   units owe every month; the building's bills (cleaning, common electricity, elevator service,
+   repairs) are paid out of the operating fund that charge fills and are **not charged to the
+   units again**. In a building with a monthly charge plan, `ExpenseRepository.create/update`
+   refuse a bill split among units (`OpError.SPLIT_ON_MONTHLY_CHARGE`). The one exception is water
+   split by each unit's own meter, which is charging by use.
+2. **The monthly charge is a mix**, each part optional: a fixed amount per unit (with per-unit
+   multipliers معاف/½…۴), per resident, per m² (`BuildingRepository.saveMonthlyCharge`,
+   `monthlyPlan`). The Iranian Apartment Ownership Act (ماده ۴ and its آیین‌نامه) splits area-related
+   costs by area and the rest equally unless the owners agree otherwise; buildings commonly combine
+   a fixed part with per-m² and per-person parts and agreed coefficients. A change applies from the
+   open month (its first-day charge is reversed and re-posted); closed months keep what they charged.
+3. **Big or unexpected jobs are a «شارژ فوق‌العاده»** (special assessment): a one-off amount with its
+   own title and split, owed from the day it is issued (`SpecialChargeRepository`). It is a CHARGE
+   outside any month (periodId = null) under the hidden type «شارژ فوق‌العاده», shown as its own
+   section on bills; cancelling posts a reversal. The job itself is then a bill paid from the fund.
+4. **Buildings without a monthly charge split their actual bills** at month end («تقسیم قبض‌ها»);
+   until closing such a bill is shown as «هزینه‌های در راه» (not owed yet). Setting a monthly charge
+   later moves expense types and the open month's split bills to the fund (no double charge).
+5. **Unpaid charges carry forward** (balance-forward; payments settle the oldest debt first).
+
+Not built yet (practice, deferred until needed): a separate reserve fund contribution in the simple
+screens, special charges in instalments, periodic on-account true-up (علی‌الحساب و تسویه), late fees.
+
+Sources: Buildium, *Understanding HOA finances* and *HOA special assessment*; Nolo, *When HOAs can
+impose special assessments*; DoorLoop, *HOA reserve fund accounting*; آیین‌نامه اجرایی قانون تملک
+آپارتمان‌ها (ekhtebar.ir); ChargePal, *راهنمای بودجه‌بندی سالانه ساختمان*; Achimdoor, *فرمول محاسبه شارژ*.
+
 ## 4. Financial invariants (tested)
 
 1. **I1** Every journal entry balances: Σ lines = 0.

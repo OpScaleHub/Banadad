@@ -164,10 +164,8 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
                 if (!finalized && result?.canFinalize == false) Hint(S.cannotCloseYet, MaterialTheme.colorScheme.error)
                 // Deleting the month is rare and destructive: a quiet text button, not a peer of «بستن ماه».
                 if (!finalized) TextButton(onClick = { confirmDelete = true }) { Text(S.deleteDraft, color = MaterialTheme.colorScheme.error) }
-                if (finalized) {
-                    Button(onClick = { nav.navigate(com.github.opscalehub.dong.ui.Routes.send(p.id)) }, Modifier.fillMaxWidth()) { Text(S.sendBills) }
-                    SummaryShareButton(vm, building, p)
-                }
+                if (finalized) Button(onClick = { nav.navigate(com.github.opscalehub.dong.ui.Routes.send(p.id)) }, Modifier.fillMaxWidth()) { Text(S.sendBills) }
+                SummaryShareButton(vm, building, p)
             }
         }
         val r = result

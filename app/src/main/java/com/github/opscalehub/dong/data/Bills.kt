@@ -51,8 +51,16 @@ class BillRepository(private val r: Repos) {
         val since = p?.let { r.finance.unitStatement(buildingId, unitId, it.startDate, null) }
         val lines = p?.let { Insights.unitComposition(d, unitId, it.id).map { (c, v) -> d.categoryName(c) to v } }.orEmpty()
         val month = lines.sumOf { it.second }
+        // Special charges («شارژ فوق‌العاده») since the month began: their own lines, by title.
+        val specialCat = r.special.categoryId(buildingId)
+        // A cancellation is counted under the title it cancels, so a cancelled charge nets to nothing.
+        val byId = d.entries.associateBy { it.id }
+        fun title(entryId: String): String = byId[entryId]?.let { e -> e.reversesEntryId?.let { byId[it]?.memo } ?: e.memo } ?: ""
+        val special = since?.rows.orEmpty().filter { specialCat != null && it.categoryId == specialCat }
+            .groupBy { title(it.entryId) }.map { (k, l) -> k to l.sumOf { it.amount } }.filter { it.second != 0L }
         return Bill(b.name, unit.label, p?.name, lines, since?.opening ?: 0, since?.payments ?: 0, total.closing, Fmt.date(r.clock.today(), b.calendar),
-            later = since?.let { it.charges - month } ?: 0,
+            later = since?.let { it.charges - month - special.sumOf { x -> x.second } } ?: 0,
+            special = special,
             adjust = since?.let { it.refunds - it.creditsAndAdjustments } ?: 0,
             dueDate = p?.dueDate?.let { Fmt.date(it, b.calendar) },
             payAccount = b.payAccount, payHolder = b.payHolder,
@@ -80,10 +88,14 @@ class BillRepository(private val r: Repos) {
         val b = r.db.buildingDao().building(buildingId) ?: fail(OpError.NOT_FOUND)
         val p = d.periods.firstOrNull { it.id == periodId } ?: fail(OpError.NOT_FOUND)
         val c = Insights.collection(d, p.id)
-        val charges = d.periodResults[p.id]?.lines.orEmpty().groupBy { it.unitId }.mapValues { (_, l) -> l.sumOf { it.amount } }
+        // An open month (shared during the month so residents see where the money went) shows only
+        // what is already charged, never the preview of what closing would charge.
+        val open = p.status == PeriodStatus.DRAFT
+        val charges = if (open) Insights.postedCharges(d, p.id).groupBy { it.first }.mapValues { (_, l) -> l.sumOf { it.third } }
+            else d.periodResults[p.id]?.lines.orEmpty().groupBy { it.unitId }.mapValues { (_, l) -> l.sumOf { it.amount } }
         val reserve = d.funds.filter { it.kind == FundKind.RESERVE }.sumOf { d.balances.funds[it.id] ?: 0 }
         return MonthSummary(
-            building = b.name, period = p.name, billed = c.billed, collected = c.collected,
+            building = b.name, period = if (open) "${p.name} (${com.github.opscalehub.dong.ui.S.untilToday})" else p.name, billed = c.billed, collected = c.collected,
             expenses = Insights.expensesByCategory(d, p).filter { it.amount > 0 }.map { d.categoryName(it.categoryId) to it.amount },
             units = d.units.filter { (charges[it.id] ?: 0) != 0L }.map { Triple(it.label, charges[it.id] ?: 0, d.balances.units[it.id] ?: 0) },
             cash = d.balances.cashTotal, reserve = reserve, date = Fmt.date(r.clock.today(), b.calendar),
@@ -91,10 +103,18 @@ class BillRepository(private val r: Repos) {
     }
 }
 
+/** Units with a special charge («شارژ فوق‌العاده») dated within [p]: they get that month's bill too. */
+private fun specialChargedUnits(d: ReportData, p: com.github.opscalehub.dong.data.db.PeriodEntity): Set<String> {
+    val cat = d.categories.firstOrNull { !it.active && it.name == SPECIAL_CHARGE }?.id ?: return emptySet()
+    val inMonth = d.entries.filter { it.entryDate in p.startDate..p.endDate }.map { it.id }.toSet()
+    return d.lines.filter { it.categoryId == cat && it.entryId in inMonth && it.unitId != null && it.account == com.github.opscalehub.dong.domain.ledger.AccountKind.RECEIVABLE }
+        .groupBy { it.unitId!! }.filterValues { l -> l.sumOf { it.amountMinor } != 0L }.keys
+}
+
 /** Units that were charged in [periodId] (the ones that get a bill); for an open month, those charged in advance. */
 fun billedUnits(d: ReportData, periodId: String): Set<String> {
     val p = d.periods.firstOrNull { it.id == periodId }
-    return if (p != null && p.status == PeriodStatus.DRAFT)
+    return (if (p != null) specialChargedUnits(d, p) else emptySet()) + if (p != null && p.status == PeriodStatus.DRAFT)
         Insights.postedCharges(d, periodId).groupBy { it.first }.filterValues { l -> l.sumOf { it.third } != 0L }.keys +
             // A unit exempt from the monthly charge still gets a bill when it shares a bill charged at closing.
             (if (isBilled(d, p)) d.units.filter { u -> Insights.pendingComposition(d, u.id, periodId).isNotEmpty() }.map { it.id } else emptyList())

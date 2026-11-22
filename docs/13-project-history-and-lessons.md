@@ -48,6 +48,7 @@ links to them.
 | 2026-11-20 | 0.10.1 | Owner's test of 0.10.0: a repair recorded the day after closing Aban (Azar not started) was saved with no month («بدون ماه») and so was never charged or shown. A new bill now goes to the open month containing its date, else the next open month; with none, the form says so in red and offers «شروع ماه … و ثبت هزینه در آن», and with a month it says when units are charged. Bills show «هزینه‌های در راه» from every open month (a closed month's bill shows a repair already recorded for the next one); a month made ahead of time does not list its regular monthly charge as «در راه». Home shows today's month even when it was closed early (a next month started ahead of time no longer hid the closed month's bill and collection steps). Small phones and large system fonts (checked at 360×640 and 320×569 dp, and a Galaxy A23 size, 1080×2408 at 360dp wide with font 1.3): tab labels stay on one line («هزینه‌ها» broke at its ZWNJ), the Units tab's debt card shows only the total when under ~700dp of height at the phone's font size, so units are on screen. A separate «پیش‌دریافت» (units owe a collection at once, before any month closes) was considered and deferred until a tester needs it. |
 | 2026-11-22 | 0.10.2 | A tester's 19-unit building (backup + screenshots): set up as «تقسیم قبض‌ها», every expense type then set to «از صندوق», residents paying a monthly amount: the month showed 0 for every unit with «همه‌چیز آماده است», the deadline was the 10th of the next month, and there was no way to add a monthly charge after setup (the «شارژ ماهانه» page could only edit, and «بیشتر» hid it). Now «شارژ ماهانه» is always in «بیشتر» and offers «تعیین شارژ ماهانه» (per unit with ½…۴ multipliers, per person, per m²; `BuildingRepository.setMonthlyCharge`): from the open month it is charged on day 1 and due by the 10th, payments already recorded count against it. An empty month explains itself (with that button) instead of listing zeros, and the per-unit list shows payments received in the month. The Expenses tab keeps only «هزینه جدید» (types and monthly charge live in «بیشتر»). Card/IBAN field: left-to-right, digits grouped as typed, Luhn / IBAN mod-97 checks, and a warning when a card starts with no Iranian bank prefix (the tester had typed the groups in reverse because the right-to-left field showed them reversed; a reversed card still passes Luhn); a number typed into «به نام» is caught. |
 | 2026-11-22 | 0.10.3 | «وصول شارژ» explains where the month's payments went: payments clear the oldest debt first, so after past debts were entered the tester saw «۰ از ۳۲,۳۰۰,۰۰۰» right after recording 6,400,000. Home's step adds «… بابت بدهی قبلی» and the collection screen says it in a sentence (`Insights.paidToOlderDebt`). Released on GitHub only; Bazaar waits for testers' green light. Late fees (جریمه دیرکرد) considered and deliberately not built. |
+| 2026-11-22 | 0.11.0 | Owner: a bill paid from the fund put residents back in debt, and the monthly charge could not mix per unit + per person + per m² after setup. Researched owners'-association and Iranian practice first (docs/02 §3a) and aligned the model: with a monthly charge, bills are paid from the fund and never charged to units again (enforced in `ExpenseRepository`; only water by meter is allowed); the monthly charge is one editable plan of any mix with ½…۴ multipliers (`saveMonthlyCharge`); a prepaid repair is a «شارژ فوق‌العاده» owed from the day it is issued, its own section on bills, cancellable (`SpecialChargeRepository`); setting a monthly charge moves the open month's split bills and expense types to the fund; the month summary can be shared during the month (posted charges only). The 0.10.0 «در راه» amber stays only for buildings that split their actual bills. |
 
 ## 3. Key decisions and the reasons behind them
 
@@ -150,6 +151,11 @@ links to them.
 ## 5. Lessons learned
 
 ### About users and UX
+- **Check the accounting model against established practice before building a money feature.**
+  0.10.0 showed a prepaid repair as an amber «در راه» line on top of the monthly charge, and let a
+  bill be split among units on top of it; owners'-association and Iranian practice say bills are
+  paid from the fund and a big job is a «شارژ فوق‌العاده» (docs/02 §3a). The owner had to point it
+  out; research first would have avoided two releases.
 - **A builder's own review fixes words, not the model.** The 0.3.2 wording review was useful but
   real users still gave up: the gap was conceptual (engine concepts on screen). Watch real users,
   or at least role-play the specific person, before polishing text (docs/09, docs/10).
@@ -202,7 +208,7 @@ links to them.
 
 ## 6. How to resume
 
-- **Build and test**: `./gradlew testDebugUnitTest` (175 tests after 0.10.2; count them from
+- **Build and test**: `./gradlew testDebugUnitTest` (178 tests after 0.11.0; count them from
   `app/build/test-results/testDebugUnitTest/*.xml`), then
   `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` (1 end-to-end test).
 - **Release**: commit, `git push` (the script requires main in sync with origin), then

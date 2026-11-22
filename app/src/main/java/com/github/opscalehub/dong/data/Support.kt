@@ -51,6 +51,8 @@ enum class OpError {
     NOT_FOUND, INVALID_AMOUNT, INVALID_INPUT, REASON_REQUIRED,
     PERIOD_FINALIZED, PERIOD_OVERLAP, PERIOD_HAS_BLOCKING_ISSUES, PERIOD_NOT_FINALIZED, NOTHING_TO_CORRECT,
     LOCKED_BY_FINALIZED_PERIOD, ALREADY_REVERSED, CANNOT_REVERSE, HAS_PAYMENTS, OPENING_EXISTS, OPENING_LOCKED, NOT_BALANCED,
+    /** A bill split among units on top of the monthly charge (see ExpenseRepository.allowedWithMonthlyCharge). */
+    SPLIT_ON_MONTHLY_CHARGE,
 }
 
 fun fail(code: OpError, detail: String = ""): Nothing = throw OpException(code, detail)
