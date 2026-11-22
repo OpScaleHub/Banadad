@@ -1,12 +1,12 @@
 {
-  "version": "0.10.2",
-  "versionCode": 24,
+  "version": "0.10.3",
+  "versionCode": 25,
   "minSdk": 26,
   "date": "2026-11-22",
   "dateJalali": "1405/09/01",
   "sizeBytes": 7803009,
-  "sha256": "4ae0a127c299f4bd88f2f1ec58fb79ff668031041d2316f6599e8242f3f6e681",
+  "sha256": "11d7296801beb9eb64a474c48b832bccedfab1b389232ecac0334c1b15cf4c6e",
   "apk": "https://github.com/OpScaleHub/Dang/releases/latest/download/dang.apk",
-  "apkPinned": "https://github.com/OpScaleHub/Dang/releases/download/v0.10.2/dang-0.10.2.apk",
-  "notes": "https://github.com/OpScaleHub/Dang/releases/tag/v0.10.2"
+  "apkPinned": "https://github.com/OpScaleHub/Dang/releases/download/v0.10.3/dang-0.10.3.apk",
+  "notes": "https://github.com/OpScaleHub/Dang/releases/tag/v0.10.3"
 }
