@@ -374,7 +374,10 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
             val r = rows[i]
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(Fa.entryType(r.type) + (r.categoryId?.let { id -> report?.categoryName(id) }?.let { " — $it" } ?: ""), style = MaterialTheme.typography.bodyMedium)
+                    val cat = r.categoryId?.let { id -> report?.categoryName(id) }
+                    // A special charge is not a month's charge: name it by itself.
+                    Text(if (cat == com.github.opscalehub.dong.data.SPECIAL_CHARGE) (if (r.type == com.github.opscalehub.dong.domain.ledger.EntryType.REVERSAL) "${S.cancelSpecial} $cat" else cat)
+                        else Fa.entryType(r.type) + (cat?.let { " — $it" } ?: ""), style = MaterialTheme.typography.bodyMedium)
                     Hint(Fmt.date(r.date, building.calendar) + if (r.memo.isNotBlank()) "، ${r.memo}" else "")
                 }
                 if (r.type == com.github.opscalehub.dong.domain.ledger.EntryType.RESIDENT_PAYMENT && report?.reversedEntryIds?.contains(r.entryId) == false)
