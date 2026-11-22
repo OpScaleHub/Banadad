@@ -74,6 +74,54 @@ object PayTo {
         return "\u2066$grouped\u2069"
     }
 
+    /** Card or IBAN as stored: Latin digits only, and «IR» in front of a 24-digit IBAN. */
+    fun normalize(input: String): String {
+        val raw = com.github.opscalehub.dong.i18n.Fmt.latin(input).uppercase().filter { it.isLetterOrDigit() }
+        val digits = raw.filter { it.isDigit() }
+        return if (raw.startsWith("IR") || digits.length == 24) "IR$digits" else digits
+    }
+
+    /** Six-digit card prefixes of Iranian banks (Shetab), to catch a number typed in the wrong order. */
+    private val BINS = setOf(
+        "603799", "589210", "627648", "627961", "603770", "628023", "627760", "502908", "627412", "622106", "639194",
+        "502229", "639347", "627488", "502910", "621986", "639346", "639607", "636214", "502806", "502938", "603769",
+        "610433", "991975", "627353", "585983", "589463", "627381", "505785", "636795", "504172", "505416", "606373",
+        "628157", "505801", "639370", "639599", "507677", "606256", "504706", "636949", "585947", "639217",
+    )
+
+    private fun luhn(d: String): Boolean = d.reversed().mapIndexed { i, c ->
+        val x = (c - '0') * (if (i % 2 == 1) 2 else 1); if (x > 9) x - 9 else x
+    }.sum() % 10 == 0
+
+    private fun ibanOk(iban: String): Boolean {
+        val moved = iban.drop(4) + "1827" + iban.substring(2, 4) // I=18, R=27
+        return java.math.BigInteger(moved).mod(java.math.BigInteger.valueOf(97)).toInt() == 1
+    }
+
+    enum class Check { OK, EMPTY, WRONG_LENGTH, BAD_CARD, UNKNOWN_BANK, BAD_IBAN }
+
+    /**
+     * Checks a card (16 digits, Luhn) or IBAN (IR + 24 digits, mod 97). [Check.UNKNOWN_BANK] is a
+     * warning only: a valid card that starts with no Iranian bank prefix was most likely typed in
+     * the wrong order (a right-to-left field shows the groups reversed, and testers "fixed" it).
+     */
+    fun check(account: String): Check {
+        val n = normalize(account)
+        val letters = com.github.opscalehub.dong.i18n.Fmt.latin(account).uppercase().removePrefix("IR").any { it.isLetter() }
+        return when {
+            account.isBlank() -> Check.EMPTY
+            letters || n.isEmpty() -> Check.WRONG_LENGTH
+            n.startsWith("IR") -> if (n.length != 26) Check.WRONG_LENGTH else if (ibanOk(n)) Check.OK else Check.BAD_IBAN
+            n.length != 16 -> Check.WRONG_LENGTH
+            !luhn(n) -> Check.BAD_CARD
+            n.take(6) !in BINS -> Check.UNKNOWN_BANK
+            else -> Check.OK
+        }
+    }
+
+    /** True when a name field holds a number (a card typed into «به نام»). */
+    fun looksLikeNumber(holder: String): Boolean = com.github.opscalehub.dong.i18n.Fmt.latin(holder).count { it.isDigit() } >= 8
+
     /** A line for reminder messages, or null when the building has no payment details. */
     fun line(account: String, holder: String): String? = when {
         account.isBlank() -> null

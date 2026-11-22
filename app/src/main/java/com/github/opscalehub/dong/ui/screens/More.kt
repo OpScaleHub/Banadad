@@ -51,14 +51,14 @@ private data class Entry(val label: String, val hint: String, val icon: ImageVec
 fun MoreScreen(vm: AppViewModel, nav: NavController) {
     val meters by vm.meters.collectAsState()
     val spaces by vm.spaces.collectAsState()
-    val charges by vm.chargeItems.collectAsState()
     val groups = listOf(
         listOfNotNull(
             Entry(S.monthsAndClosing, S.menuMonths, Icons.Filled.DateRange, Routes.PERIODS),
             Entry(S.transactions, S.menuTransactions, Icons.AutoMirrored.Filled.List, Routes.FINANCE),
         ),
         listOfNotNull(
-            Entry(S.chargeItems, S.menuCharges, Icons.Filled.AccountBox, Routes.CHARGE_ITEMS).takeIf { charges.isNotEmpty() },
+            // Always listed: a building that splits its bills can set a monthly charge here.
+            Entry(S.chargeItems, S.menuCharges, Icons.Filled.AccountBox, Routes.CHARGE_ITEMS),
             Entry(S.categories, S.menuCategories, Icons.Filled.ShoppingCart, Routes.CATEGORIES),
             Entry(S.metersAndTariffs, S.menuMeters, Icons.Filled.Info, Routes.WATER),
             Entry(S.parking, S.menuParking, Icons.Filled.Place, Routes.PARKING).takeIf { spaces.isNotEmpty() },
