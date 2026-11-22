@@ -35,7 +35,7 @@ class PayToCheckTest {
     }
 
     @Test fun `a number in the name field is noticed`() {
-        assertTrue(PayTo.looksLikeNumber("6062 9316 2910 5022"))
+        assertTrue(PayTo.looksLikeNumber("6037 9912 3456 7893"))
         assertFalse(PayTo.looksLikeNumber("مدیر ساختمان"))
     }
 }
