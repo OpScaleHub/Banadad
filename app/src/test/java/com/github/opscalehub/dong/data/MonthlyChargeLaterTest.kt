@@ -24,14 +24,14 @@ class MonthlyChargeLaterTest {
     private val clock = FixedClock(azar1)
     private val r = Repos(db, clock)
     private val drafts = listOf(
-        BuildingRepository.UnitDraft("جعفری", 1, 0, 3), BuildingRepository.UnitDraft("میزانی", 1, 0, 2), BuildingRepository.UnitDraft("مرادی", 2, 0, 4),
+        BuildingRepository.UnitDraft("الف", 1, 0, 3), BuildingRepository.UnitDraft("ب", 1, 0, 2), BuildingRepository.UnitDraft("پ", 2, 0, 4),
     )
 
     @After fun close() = db.close()
 
     @Test
     fun `a split-bills building gets a monthly charge from its open month, due by the 10th`() = runBlocking {
-        val b = r.buildings.setup("ذاکری", "", true, 1000, drafts, 0, 0, BuildingRepository.ChargePlan.SplitBills)
+        val b = r.buildings.setup("آزمون", "", true, 1000, drafts, 0, 0, BuildingRepository.ChargePlan.SplitBills)
         val p = db.periodDao().periods(b).single()
         assertEquals("split bills: due after the month", p.endDate + 10, p.dueDate)
         val units = db.buildingDao().units(b).sortedBy { it.sortOrder }
