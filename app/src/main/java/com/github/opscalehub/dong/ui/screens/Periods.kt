@@ -113,6 +113,11 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
     val finalized = p.status == PeriodStatus.FINALIZED
     val result by derived(vm, periodId, p.status) { if (finalized) vm.repos.periods.effectiveResult(periodId) else vm.repos.periods.preview(periodId) }
     val revisions by derived(vm, periodId) { vm.repos.db.periodDao().revisions(periodId) }
+    // Payments received in this month per unit, so a month with nothing charged yet still shows who paid.
+    val entries by vm.entries.collectAsState()
+    val paidIn by derived(vm, periodId, entries.size) { vm.reports.periodStatements(building.id, periodId).mapValues { it.value.payments } }
+    val chargeItems by vm.chargeItems.collectAsState()
+    val hasMonthlyCharge = chargeItems.any { it.active && it.inAdvance && it.mode != com.github.opscalehub.dong.domain.model.ChargeMode.WATER_TARIFF }
     var confirmFinalize by remember { mutableStateOf(false) }
     var correction by remember { mutableStateOf<PeriodRepository.CorrectionPreview?>(null) }
     var askReason by remember { mutableStateOf(false) }
@@ -166,11 +171,20 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
             }
         }
         val r = result
+        // Nothing to charge (no monthly charge, no bill split among units): say why and what to do,
+        // instead of «همه‌چیز آماده است» over a list of zeros.
+        val empty = r != null && !finalized && r.total == 0L
+        if (empty) item {
+            SectionCard(S.emptyMonthTitle) {
+                Hint(if (hasMonthlyCharge) S.emptyMonthBills else S.emptyMonthNoCharge)
+                if (!hasMonthlyCharge) Button(onClick = { nav.navigate(com.github.opscalehub.dong.ui.Routes.CHARGE_ITEMS) }, Modifier.fillMaxWidth()) { Text(S.setMonthlyCharge) }
+            }
+        }
         if (r != null) {
             item {
                 SectionCard(S.issues) {
                     val shown = r.issues.filter { it.severity != Severity.INFO || it.code.name.startsWith("UNALLOCATED") || it.code.name.startsWith("FUND_BORNE") }
-                    if (!finalized && r.issues.none { it.blocking }) Hint(S.noIssues, MaterialTheme.colorScheme.primary)
+                    if (!finalized && !empty && r.issues.none { it.blocking }) Hint(S.noIssues, MaterialTheme.colorScheme.primary)
                     IssueList(shown, names, onReadings = if (finalized) null else { { nav.navigate(com.github.opscalehub.dong.ui.Routes.READINGS) } })
                 }
             }
@@ -204,9 +218,13 @@ fun PeriodScreen(vm: AppViewModel, nav: NavController, periodId: String) {
                 }
             }
             item {
-                SectionCard(S.perUnitTotals) {
+                SectionCard(S.perUnitTotals, subtitle = if (paidIn.orEmpty().values.any { it != 0L }) S.perUnitWithPaid else null) {
                     val totals = r.unitTotals
-                    units.forEach { u -> KeyValue("${S.unit} ${Fmt.ltr(u.label)}", money(totals[u.id] ?: 0)) }
+                    val paid = paidIn.orEmpty()
+                    units.forEach { u ->
+                        val got = paid[u.id] ?: 0L
+                        KeyValue("${S.unit} ${Fmt.ltr(u.label)}", money(totals[u.id] ?: 0) + if (got != 0L) "  (${S.paidShort} ${money(got)})" else "")
+                    }
                 }
             }
             if (r.water.meters.isNotEmpty()) {

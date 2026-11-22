@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.github.opscalehub.dong.share.PayTo.Check as C
 import androidx.compose.ui.platform.LocalContext
 import com.github.opscalehub.dong.BuildConfig
 import com.github.opscalehub.dong.data.BuildingRestoreStatus
@@ -270,14 +271,52 @@ private fun BuildingSettingsCard(vm: AppViewModel) {
 private fun PaymentDetailsCard(vm: AppViewModel) {
     val b by vm.building.collectAsState()
     val building = b ?: return
-    var account by rememberSaveable(building.id) { mutableStateOf(building.payAccount) }
+    // Stored without spaces; shown in groups of four, left to right, as it is printed on the card.
+    var account by rememberSaveable(building.id) { mutableStateOf(com.github.opscalehub.dong.share.PayTo.normalize(building.payAccount)) }
     var holder by rememberSaveable(building.id) { mutableStateOf(building.payHolder) }
+    val check = com.github.opscalehub.dong.share.PayTo.check(account)
+    // A wrong length is normal while typing: a plain hint, not red, but nothing is saved until it is right.
+    val incomplete = check == C.WRONG_LENGTH
+    val accountError = when (check) {
+        C.BAD_CARD -> S.payBadCard
+        C.BAD_IBAN -> S.payBadIban
+        else -> null
+    }
+    val holderError = if (com.github.opscalehub.dong.share.PayTo.looksLikeNumber(holder)) S.payHolderIsNumber else null
     SectionCard(S.payTitle, subtitle = S.payHint) {
-        TextInput(S.payAccount, account, { account = it }, keyboard = androidx.compose.ui.text.input.KeyboardType.Ascii)
-        TextInput(S.payHolder, holder, { holder = it })
+        androidx.compose.material3.OutlinedTextField(
+            value = account,
+            onValueChange = { v -> account = com.github.opscalehub.dong.share.PayTo.normalize(v).take(26) },
+            label = { Text(S.payAccount) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            // Numbers read left to right even inside a Persian screen; typing order = card order.
+            textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = androidx.compose.ui.text.style.TextDirection.Ltr),
+            visualTransformation = GroupsOfFour,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+            isError = accountError != null,
+            supportingText = { Text(accountError ?: when { check == C.UNKNOWN_BANK -> S.payUnknownBank; incomplete -> S.payWrongLength; else -> S.payAccountHint }) },
+        )
+        TextInput(S.payHolder, holder, { holder = it }, error = holderError)
+        if (check == C.OK || check == C.UNKNOWN_BANK) {
+            com.github.opscalehub.dong.share.PayTo.line(account, holder)?.let { Hint(S.payPreview.format(it), MaterialTheme.colorScheme.primary) }
+        }
         Button(onClick = {
-            vm.run(S.saved) { vm.repos.buildings.updateSettings(building.copy(payAccount = account.trim(), payHolder = holder.trim())) }
-        }, enabled = account.trim() != building.payAccount || holder.trim() != building.payHolder) { Text(S.save) }
+            vm.run(S.saved) { vm.repos.buildings.updateSettings(building.copy(payAccount = account, payHolder = holder.trim())) }
+        }, enabled = accountError == null && !incomplete && holderError == null && (account != building.payAccount || holder.trim() != building.payHolder)) { Text(S.save) }
+    }
+}
+
+/** Shows a stored card/IBAN in groups of four («IR12 3456 …»), keeping the cursor in place. */
+private object GroupsOfFour : androidx.compose.ui.text.input.VisualTransformation {
+    override fun filter(text: androidx.compose.ui.text.AnnotatedString): androidx.compose.ui.text.input.TransformedText {
+        val raw = text.text
+        val out = raw.chunked(4).joinToString(" ")
+        val map = object : androidx.compose.ui.text.input.OffsetMapping {
+            override fun originalToTransformed(offset: Int) = offset + (if (offset == 0) 0 else (offset - 1) / 4)
+            override fun transformedToOriginal(offset: Int) = (offset - offset / 5).coerceIn(0, raw.length)
+        }
+        return androidx.compose.ui.text.input.TransformedText(androidx.compose.ui.text.AnnotatedString(out), map)
     }
 }
 

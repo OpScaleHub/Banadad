@@ -24,6 +24,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.github.opscalehub.dong.data.BuildingRepository
 import com.github.opscalehub.dong.data.SampleData
 import com.github.opscalehub.dong.data.db.CategoryEntity
 import com.github.opscalehub.dong.data.db.ChargeItemEntity
@@ -81,16 +82,10 @@ fun ExpensesScreen(vm: AppViewModel, nav: NavController) {
 
     WithFab(S.newExpense, { nav.navigate(Routes.expense("new")) }) {
         ScreenList {
-            item {
-                SectionCard {
-                    Hint(S.expenseVsPayment)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { nav.navigate(Routes.CATEGORIES) }) { Text(S.categories) }
-                        OutlinedButton(onClick = { nav.navigate(Routes.CHARGE_ITEMS) }) { Text(S.chargeItems) }
-                    }
-                }
-            }
-            if (expenses.isEmpty()) item { EmptyState(S.empty, S.expensesEmptyHint, S.newExpense) { nav.navigate(Routes.expense("new")) } }
+            // Only «هزینه جدید» here (the button below): expense types and the monthly charge are set
+            // up once and live in «بیشتر»; testers kept opening them looking for something to do.
+            item { SectionCard { Hint(S.expenseVsPayment) } }
+            if (expenses.isEmpty()) item { EmptyState(S.empty, S.expensesEmptyHint) }
             // Grouped by month, newest first, so it is obvious which bills are already settled in a closed month.
             val groups = expenses.groupBy { it.periodId }.entries.sortedByDescending { (pid, l) -> periods.firstOrNull { it.id == pid }?.startDate ?: l.maxOf { it.date } }
             groups.forEach { (pid, list) ->
@@ -482,10 +477,18 @@ fun ChargeItemsScreen(vm: AppViewModel) {
     val items by vm.chargeItems.collectAsState()
     var editing by remember { mutableStateOf<ChargeItemEntity?>(null) }
 
+    var setting by remember { mutableStateOf(false) }
+    val prepaid = items.any { it.active && it.inAdvance && it.mode != ChargeMode.WATER_TARIFF }
     WithFab(null, {}) {
         ScreenList {
-            if (items.isEmpty()) item { SectionCard { Hint(S.empty) } }
-            item { SectionCard { Hint(S.chargeEditHint) } }
+            // A building set up to split its bills can still move to a fixed monthly charge.
+            if (!prepaid) item {
+                SectionCard(S.noMonthlyCharge) {
+                    Hint(S.noMonthlyChargeHint)
+                    Button(onClick = { setting = true }, Modifier.fillMaxWidth()) { Text(S.setMonthlyCharge) }
+                }
+            }
+            if (items.isNotEmpty()) item { SectionCard { Hint(S.chargeEditHint) } }
             items(items.size) { i ->
                 val c = items[i]
                 SectionCard {
@@ -502,6 +505,7 @@ fun ChargeItemsScreen(vm: AppViewModel) {
             }
         }
     }
+    if (setting) SetMonthlyChargeDialog(vm, building.id) { setting = false }
     val target = editing
     // Only the amount changes. Closed months keep what they charged; open ones use the new amount.
     if (target != null) {
@@ -612,6 +616,69 @@ private fun SplitOption(label: String, hint: String, selected: Boolean, onClick:
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge)
             if (hint.isNotBlank()) Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * «تعیین شارژ ماهانه» for a building that has none: the same choices as the setup wizard (a
+ * fixed amount per unit, with ½…۴ multipliers, per person or per m²). From the open month on,
+ * units owe it from the first day and pay by the 10th.
+ */
+@Composable
+fun SetMonthlyChargeDialog(vm: AppViewModel, buildingId: String, close: () -> Unit) {
+    val units by vm.units.collectAsState()
+    val occ by vm.occupancy.collectAsState()
+    val rows = units.sortedBy { it.sortOrder }
+    val areasKnown = rows.filter { it.active }.all { it.areaCentiM2 > 0 }
+    val bases = BuildingRepository.FixedBasis.entries.filter { it != BuildingRepository.FixedBasis.COMBINED && (areasKnown || it != BuildingRepository.FixedBasis.PER_M2) }
+    var basis by remember { mutableStateOf(BuildingRepository.FixedBasis.PER_UNIT) }
+    val rate = rememberMoney(null)
+    var differ by remember { mutableStateOf(false) }
+    val halves = remember { androidx.compose.runtime.mutableStateListOf<Long>() }
+    val mf = LocalMoney.current
+    fun plan(): BuildingRepository.ChargePlan.Fixed? {
+        val v = rate.value?.takeIf { it > 0 } ?: return null
+        return when (basis) {
+            BuildingRepository.FixedBasis.PER_UNIT -> {
+                val w = if (differ) com.github.opscalehub.dong.ui.halvesToWeights(rows.indices.map { halves.getOrElse(it) { 2L } }) else null
+                if (w != null && w.first.all { it == 0L }) null
+                else BuildingRepository.ChargePlan.Fixed(perUnit = v, unitWeights = w?.first, weightScale = w?.second ?: 1)
+            }
+            BuildingRepository.FixedBasis.PER_PERSON -> BuildingRepository.ChargePlan.Fixed(perPerson = v)
+            else -> BuildingRepository.ChargePlan.Fixed(perM2 = v)
+        }
+    }
+    val p = plan()
+    FormDialog(S.setMonthlyCharge, close, {
+        vm.run(S.saved, onSuccess = close) { vm.repos.buildings.setMonthlyCharge(buildingId, p!!) }
+    }, canConfirm = p != null) {
+        Hint(S.setMonthlyChargeHint)
+        SingleChoice(bases, basis, { basis = it }) {
+            when (it) {
+                BuildingRepository.FixedBasis.PER_UNIT -> S.fixedPerUnit
+                BuildingRepository.FixedBasis.PER_PERSON -> S.fixedPerPerson
+                else -> S.fixedPerM2
+            }
+        }
+        NumberInput(when (basis) {
+            BuildingRepository.FixedBasis.PER_PERSON -> S.ratePerPerson
+            BuildingRepository.FixedBasis.PER_M2 -> S.ratePerM2
+            else -> S.ratePerUnit
+        }, rate)
+        if (basis == BuildingRepository.FixedBasis.PER_UNIT) {
+            SwitchRow(S.unitsDiffer, differ, { differ = it }, supporting = S.unitsDifferHint)
+            if (differ) com.github.opscalehub.dong.ui.MultiplierEditor(
+                rows.map { com.github.opscalehub.dong.ui.MultiplierRow("${S.unit} ${Fmt.ltr(it.label)}", it.floor) },
+                rows.indices.map { halves.getOrElse(it) { 2L } },
+            ) { h -> halves.clear(); halves.addAll(h) }
+        }
+        // What the first unit would pay, so the amount is checked against a real unit.
+        if (p != null && rows.isNotEmpty()) {
+            val u = rows.first()
+            val people = currentOccupants(occ, vm.today)[u.id] ?: 0
+            val share = p.perUnit * (p.unitWeights?.firstOrNull() ?: p.weightScale) / p.weightScale + p.perPerson * people + p.perM2 * u.areaCentiM2 / 100
+            Text(S.exampleShare.format(Fmt.ltr(u.label), mf.withUnit(share)), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
