@@ -268,6 +268,31 @@ class BuildingRepository(private val r: Repos) {
     }
 
     /**
+     * With a monthly charge, bills are paid from the fund (docs/02 §3a): expense types default to
+     * it, and bills in open months that are split among units (entered before this rule, or before
+     * the charge was set) are moved to it, else closing the month would charge them on top of the
+     * charge. Water split by each unit's meter stays. Closed months are never touched. Idempotent:
+     * the app runs it on start and after changes; returns how many bills it moved.
+     */
+    suspend fun alignBillsWithMonthlyCharge(buildingId: String): Int = r.tx {
+        if (monthlyPlan(buildingId) == null) return@tx 0
+        val exp = r.db.expenseDao()
+        exp.categories(buildingId).filter { it.active }.forEach { c ->
+            if (!r.expenses.allowedWithMonthlyCharge(buildingId, c.id, AllocationPolicy.decode(c.defaultPolicyJson)))
+                exp.upsertCategory(c.copy(defaultPolicyJson = AllocationPolicy.FUND_ONLY.encode()))
+        }
+        var moved = 0
+        r.db.periodDao().periods(buildingId).filter { it.status == com.github.opscalehub.dong.data.db.PeriodStatus.DRAFT }.forEach { p ->
+            exp.activeExpensesForPeriod(p.id).filter { !r.expenses.allowedWithMonthlyCharge(buildingId, it.categoryId, AllocationPolicy.decode(it.policyJson)) }.forEach {
+                r.expenses.update(it.copy(policyJson = AllocationPolicy.FUND_ONLY.encode()), "شارژ ماهانه دارد؛ از صندوق پرداخت می‌شود")
+                moved++
+            }
+        }
+        if (moved > 0) r.journal.audit(buildingId, "ALIGN_BILLS", "building", buildingId, "${Fmt.number(moved.toLong())} هزینه ماه باز به پرداخت از صندوق منتقل شد")
+        moved
+    }
+
+    /**
      * Sets or changes the monthly charge: any mix of a fixed amount per unit (with multipliers),
      * per resident and per m² (owner's report: the wizard had the mix, but after setup only one
      * amount could be edited and nothing added). Applies from the open month on: its first-day
@@ -311,21 +336,7 @@ class BuildingRepository(private val r: Repos) {
         }
         r.journal.audit(buildingId, "SET_MONTHLY_CHARGE", "building", buildingId,
             "شارژ ماهانه از ${Fmt.date(from)}: هر واحد ${Fmt.money(plan.perUnit)}، هر نفر ${Fmt.money(plan.perPerson)}، هر متر ${Fmt.money(plan.perM2)}")
-        // With a monthly charge, bills are paid from the fund: expense types default to it, and bills
-        // already entered in an open month and split among units are moved to it (else closing the
-        // month would charge them on top of the charge). Closed months are not touched.
-        val exp = r.db.expenseDao()
-        exp.categories(buildingId).filter { it.active }.forEach { c ->
-            if (!r.expenses.allowedWithMonthlyCharge(buildingId, c.id, AllocationPolicy.decode(c.defaultPolicyJson)))
-                exp.upsertCategory(c.copy(defaultPolicyJson = AllocationPolicy.FUND_ONLY.encode()))
-        }
-        var moved = 0
-        drafts.forEach { p ->
-            exp.activeExpensesForPeriod(p.id).filter { !r.expenses.allowedWithMonthlyCharge(buildingId, it.categoryId, AllocationPolicy.decode(it.policyJson)) }.forEach {
-                r.expenses.update(it.copy(policyJson = AllocationPolicy.FUND_ONLY.encode()), "شارژ ماهانه تعیین شد؛ از صندوق پرداخت می‌شود")
-                moved++
-            }
-        }
+        val moved = alignBillsWithMonthlyCharge(buildingId)
         // A building that split its bills now charges in advance: open months are due by the 10th.
         drafts.forEach { p ->
             if (!wasPrepaid) r.db.periodDao().updatePeriod(p.copy(dueDate = r.periods.defaultDue(buildingId, p.startDate, p.endDate)))

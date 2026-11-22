@@ -160,6 +160,15 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                     }
                 }
             }
+            // ---- old split bills moved to the fund (building with a monthly charge) -----------
+            item {
+                val movedAll by vm.ui.billsMoved.collectAsState()
+                val moved = movedAll[building.id] ?: return@item
+                NoticeCard(S.billsMovedTitle, S.billsMovedBody.format(Fmt.number(moved.toLong())), S.billsMovedSee,
+                    secondary = S.billsMovedOk to { vm.ui.dismissBillsMoved(building.id) }) {
+                    vm.ui.dismissBillsMoved(building.id); nav.navigate(Routes.EXPENSES)
+                }
+            }
             // ---- starting balances: confirm once, before the first month closes -------------
             item {
                 val seen by vm.ui.openingSeen.collectAsState()
