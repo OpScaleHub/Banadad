@@ -137,7 +137,9 @@ fun HomeScreen(vm: AppViewModel, nav: NavController) {
                     val send = report?.let { sendProgress(com.github.opscalehub.dong.data.billedUnits(it, current.id), shares, current.id) }
                     add(StepState(S.stepSend, if (report == null) "…" else if (billed && send != null) S.sentCount.format(Fmt.number(send.first.toLong()), Fmt.number(send.second.toLong())) else S.afterClosing,
                         send != null && send.second > 0 && send.first >= send.second, billed) { nav.navigate(Routes.send(current.id)) })
-                    add(StepState(S.stepCollect, if (report == null) "…" else coll?.takeIf { it.billed > 0 }?.let { "${money(it.collected)} ${S.of} ${money(it.billed)}" } ?: S.afterClosing,
+                    add(StepState(S.stepCollect, if (report == null) "…" else coll?.takeIf { it.billed > 0 }?.let { c ->
+                        "${money(c.collected)} ${S.of} ${money(c.billed)}" + (report?.let { d -> Insights.paidToOlderDebt(d, current.id) }?.takeIf { it > 0 }?.let { "، ${S.olderDebtShort.format(money(it))}" } ?: "")
+                    } ?: S.afterClosing,
                         coll != null && coll.billed > 0 && coll.collected >= coll.billed, billed) { nav.navigate(Routes.COLLECT) })
                 }
                     .let { list ->

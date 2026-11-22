@@ -78,6 +78,23 @@ object Insights {
         return Settlement(debits, pool.filterValues { it > 0 })
     }
 
+    /** Resident payments received in [start]..[end] (reversed ones excluded), all units together. */
+    fun paymentsReceived(d: ReportData, start: Long, end: Long): Long {
+        val entries = effectiveEntries(d).filterValues { it.type == EntryType.RESIDENT_PAYMENT && it.entryDate in start..end }
+        return -d.lines.filter { it.account == AccountKind.RECEIVABLE && it.entryId in entries }.sumOf { it.amountMinor }
+    }
+
+    /**
+     * Of the payments received during [periodId], how much went to debts older than that month
+     * (payments settle the oldest debt first). A manager who just recorded payments otherwise sees
+     * «۰ از …» for the month and thinks they were lost.
+     */
+    fun paidToOlderDebt(d: ReportData, periodId: String, s: Settlement = settle(d)): Long {
+        val p = d.periods.firstOrNull { it.id == periodId } ?: return 0
+        val received = paymentsReceived(d, p.startDate, p.endDate)
+        return (received - s.settled(periodId)).coerceIn(0, received)
+    }
+
     data class Collection(val billed: Long, val collected: Long) {
         val outstanding: Long get() = billed - collected
         /** 0..1000 (per-mille) to avoid floats in callers. */

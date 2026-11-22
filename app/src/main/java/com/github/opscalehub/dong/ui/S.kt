@@ -755,5 +755,7 @@ object S {
     const val summaryDebtsHint = "در گروه برای همه دیده می‌شود."
     const val collectTitle = "وصول شارژ"
     const val collectHint = "واحدهای بدهکار، از بیشترین بدهی."
+    const val paidToOlderDebt = "%s از پرداخت‌های این ماه، اول بدهی‌های قبلی واحدها را صاف کرد و برای همین در شارژ این ماه حساب نشده است."
+    const val olderDebtShort = "%s بابت بدهی قبلی"
     const val allPaid = "همه واحدها تسویه کرده‌اند."
 }

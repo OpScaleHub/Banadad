@@ -116,9 +116,13 @@ fun UnitsScreen(vm: AppViewModel, nav: NavController, collect: Boolean = false) 
         ScreenList {
             if (collect) item {
                 val d = report ?: return@item
-                val c = com.github.opscalehub.dong.data.lastBilled(d)?.let { Insights.collection(d, it.id) }
+                val last = com.github.opscalehub.dong.data.lastBilled(d)
+                val c = last?.let { Insights.collection(d, it.id) }
                 SectionCard(S.collectTitle, subtitle = S.collectHint) {
                     if (c != null && c.billed > 0) Text("${S.collected}: ${money(c.collected)} ${S.of} ${money(c.billed)}", style = MaterialTheme.typography.titleMedium)
+                    // Payments clear the oldest debt first: say where this month's payments went.
+                    val older = last?.let { Insights.paidToOlderDebt(d, it.id) } ?: 0L
+                    if (older > 0) Hint(S.paidToOlderDebt.format(money(older)))
                     if (balances.values.none { it > 0 }) Hint(S.allPaid, MaterialTheme.colorScheme.primary)
                 }
             }
