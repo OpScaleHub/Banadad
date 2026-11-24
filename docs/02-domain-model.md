@@ -99,7 +99,7 @@ expense reduces the fund.
 
 ## 3a. How a building charges its units (0.11)
 
-Owners'-association accounting and Iranian building practice agree on one model, and Dang follows it:
+Owners'-association accounting and Iranian building practice agree on one model, and Banadad follows it:
 
 1. **Units owe charges; bills are paid from the fund.** The monthly charge («شارژ ماهانه») is what
    units owe every month; the building's bills (cleaning, common electricity, elevator service,

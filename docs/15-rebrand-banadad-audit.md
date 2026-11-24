@@ -1,6 +1,6 @@
 # 15 — Rebrand to بناداد / Banadad: Phase 0 audit and migration plan
 
-Status: **audit only, nothing renamed.** Date: 2026-11-24. Baseline: main at v0.11.1 (versionCode 27).
+Status (2026-11-24): phases 0–3 done — app (PR #25), compatibility site, repo renamed to `OpScaleHub/Banadad`, Pages on `https://banadad.opscale.ir/`, landing page, release script, README/docs, workbook. Left: release 0.12.0, Bazaar listing. Date: 2026-11-24. Baseline: main at v0.11.1 (versionCode 27).
 Every occurrence of Dong / Dang / دنگ / دُنگ was classified; no global replace.
 
 ## 1. Counts
@@ -173,3 +173,20 @@ renaming back before anyone creates a repo with the old name.
 3. Repo rename: do it last with the org-site shim, or keep `OpScaleHub/Dang` (recommended unless the
    repo name matters publicly).
 4. Icon direction (Phase 1) before any build.
+
+## 10. What was actually done (phase 3)
+
+- A custom domain on the *old* repo's Pages made `opscalehub.github.io/Dang/release.json` answer
+  `301 http://banadad.opscale.ir/…` (http, not https) until HTTPS was enforced; Android's
+  HttpURLConnection does not follow https→http, so installed copies' update checks failed. Rolled
+  back; the CDN kept the cached redirect until a deploy succeeded (the Pages workflow first had to be
+  fixed: upload and deploy now run as separate jobs).
+- So the order became: org site `OpScaleHub/opscalehub.github.io` serving `Dang/release.json` and a
+  `Dang/index.html` that points to the new site (no redirect) → repo renamed to `OpScaleHub/Banadad` →
+  custom domain + HTTPS on Banadad. Verified: `https://opscalehub.github.io/Dang/release.json` 200
+  (org copy), `https://banadad.opscale.ir/release.json` 200, `github.com/OpScaleHub/Dang/…` 301 to
+  `…/Banadad/…` over https.
+- `scripts/release.sh` publishes `banadad.apk`, `banadad-X.Y.Z.apk`, `banadad-bazaar-X.Y.Z.apk` and a
+  `dang.apk` copy, and pushes `site/release.json` to the org repo's `Dang/release.json` on every release.
+- Never create a repository named `Dang` (breaks GitHub's redirects) and never delete the org repo
+  (older installs check there).

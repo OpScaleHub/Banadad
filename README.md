@@ -1,13 +1,13 @@
-# دنگ (Dang) — offline building management & accounting
+# بناداد (Banadad) — offline building management & accounting
 
-**«حساب‌وکتاب ساختمان، ساده و شفاف»** — مدیریت هزینه‌ها و شارژ ساختمان، بدون نیاز به اینترنت.
+**«شفافیت در حساب، انصاف در سهم»** — مدیریت مالی، محاسبه شارژ و تقسیم شفاف هزینه‌های ساختمان؛ بدون نیاز به اینترنت.
 
-**دنگ** یعنی «سهم هر نفر از یک هزینه مشترک». این برنامه اندرویدی هزینه‌های
+**بناداد** از «بنا» (ساختمان) و «داد» (انصاف) ساخته شده. این برنامه اندرویدی هزینه‌های
 ساختمان را بر اساس قواعدی که مدیر ساختمان تعیین می‌کند (مساوی، تعداد ساکنان،
 متراژ، کنتور آب، پارکینگ یا ضریب) بین واحدها تقسیم می‌کند، دفتر
 مالی دوطرفه نگه می‌دارد و بدون اینترنت، حساب کاربری یا سرور کار می‌کند.
 
-Dang (دنگ) is an offline-first Android app (Persian, right-to-left) for residential
+Banadad (بناداد) is an offline-first Android app (Persian, right-to-left) for residential
 building management and expense accounting. It runs entirely on the phone: no
 backend, no account, no analytics. The only network use is checking for and
 downloading a new version of the app (can be switched off in Settings).
@@ -73,7 +73,7 @@ unexplained-water (leak) trend — all drawn in-app, offline.
 ## Install
 
 Users: [Cafe Bazaar](https://cafebazaar.ir/app/com.github.opscalehub.dong) or
-the APK from the [landing page](https://opscalehub.github.io/Dang/).
+the APK from the [landing page](https://banadad.opscale.ir/).
 
 Debug APK (built and tested): `app/build/outputs/apk/debug/app-debug.apk`
 
@@ -147,7 +147,7 @@ docs/          requirements, domain model, plan, architecture, tests, roadmap
 5. [Test results](docs/05-test-results.md)
 6. [Known limitations and roadmap](docs/06-limitations-and-roadmap.md)
 7. [UX & reporting overhaul plan](docs/07-ux-plan.md)
-8. [Branding and the rename to دنگ / Dang](docs/08-branding-and-rename.md)
+8. [Branding and renames](docs/08-branding-and-rename.md)
 9. [Usability review (0.3.2)](docs/09-usability-review.md)
 10. [UX research plan and Persian test kit](docs/10-ux-research-plan.md)
 11. [0.4 "simple by default" design, 0.4.1–0.4.4](docs/11-v0.4-simple-design.md)
@@ -162,7 +162,7 @@ License 1.1 (see `licenses/Vazirmatn-OFL.txt`).
 
 ## Landing page and releases
 
-- Landing page: <https://opscalehub.github.io/Dang/> (static files in `site/`,
+- Landing page: <https://banadad.opscale.ir/> (static files in `site/`,
   deployed by `.github/workflows/pages.yml` on every push to `main` that touches `site/`).
 - Releases are cut locally, no CI build:
 
@@ -175,9 +175,10 @@ License 1.1 (see `licenses/Vazirmatn-OFL.txt`).
   The script bumps `version.properties`, runs the unit tests, builds a signed
   release APK, writes `site/release.json` (version, size, SHA-256, Jalali date),
   commits and tags `vX.Y.Z`, pushes, and publishes a GitHub Release with
-  `dang.apk`, `dang-X.Y.Z.apk` and `dang-bazaar-X.Y.Z.apk` attached. The landing
-  page's download button always points at `releases/latest/download/dang.apk`.
-  The Bazaar build `build/release/dang-bazaar-X.Y.Z.apk` (`-Pstore=bazaar`: adds «امتیاز در
+  `banadad.apk`, `banadad-X.Y.Z.apk` and `banadad-bazaar-X.Y.Z.apk` attached (plus
+  `dang.apk`, the same file under its pre-0.12 name, for old links). The landing
+  page's download button always points at `releases/latest/download/banadad.apk`.
+  The Bazaar build `build/release/banadad-bazaar-X.Y.Z.apk` (`-Pstore=bazaar`: adds «امتیاز در
   بازار»), which is uploaded to Cafe Bazaar by hand in the Pishkhan panel.
   Use `--skip-tests` when the tests were just run.
 - The signing key is created on the first run in `~/.config/dong/`

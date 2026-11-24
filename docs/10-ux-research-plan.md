@@ -1,4 +1,4 @@
-# UX research plan — making دنگ easy for non-technical managers
+# UX research plan — making بناداد easy for non-technical managers
 
 Status: **plan, nothing implemented yet** (2026-10-21). Trigger: the owner's father (60+, about to
 manage the building with the app) and wife (highly educated, non-technical) both found the app
@@ -18,7 +18,7 @@ thinks. Only watching real users can show that.
 
 ## 2. What the evidence says
 
-| Principle | What it means for دنگ | Source |
+| Principle | What it means for بناداد | Source |
 |---|---|---|
 | **Match the real world / users' mental model**: use the user's words and concepts, not the system's | Managers think "this month each unit pays X", "the cleaner costs Y", not "allocation policy with basis and remainder". The app's model may be right internally and still wrong on screen. | Nielsen's 10 heuristics; NN/g on mental models: mistakes come from a gap between the user's model and the design |
 | **Recognition rather than recall** | The user should not have to remember which screen holds the split method or what «مبنا» means; options and their effect should be visible where they act. | Nielsen's heuristics |

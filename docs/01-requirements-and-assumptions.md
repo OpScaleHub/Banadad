@@ -1,12 +1,12 @@
 # 01 — Requirements, Assumptions and Open Decisions
 
-Project: **Dang (دنگ)** — offline-first Android building management & accounting
-("BuildingLedger" in the original brief). *Dang* (دنگ) is Persian for "a share of a
-common cost", which is exactly what the app computes.
+Project: **Banadad (بناداد)** — offline-first Android building management & accounting
+("BuildingLedger" in the original brief). The product was first called *Dang* (دنگ, Persian for "a share of a
+common cost", which is exactly what the app computes); renamed بناداد / Banadad in 0.12 (docs/15).
 
 ## 1. Starting point
 
-- The repository (`OpScaleHub/Dong`, since renamed `OpScaleHub/Dang`) was empty. No existing conventions to
+- The repository (`OpScaleHub/Dong`, since renamed `OpScaleHub/Dang`, then `OpScaleHub/Banadad`) was empty. No existing conventions to
   preserve inside the repo; the build conventions (version catalog, Kotlin DSL,
   `com.github.opscalehub.*` namespace, JDK 17, compileSdk 35) follow the owner's
   sibling Android projects.

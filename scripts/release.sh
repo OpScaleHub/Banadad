@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cut a release of Dang (دنگ) entirely from this machine:
+# Cut a release of Banadad (بناداد) entirely from this machine:
 #   bump version -> run tests -> build signed APK -> update the landing page's
 #   release.json -> commit + tag -> push -> GitHub Release with the APK attached.
 # The landing page (site/) is deployed by .github/workflows/pages.yml on push.
@@ -9,7 +9,10 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-REPO=OpScaleHub/Dang
+REPO=OpScaleHub/Banadad
+# Compatibility site: installs built before 0.12 look for updates only at
+# https://opscalehub.github.io/Dang/release.json, served from this repo (docs/15).
+COMPAT_REPO=OpScaleHub/opscalehub.github.io
 BUMP=patch DRY=0 TESTS=1
 for a in "$@"; do
   case "$a" in
@@ -46,7 +49,7 @@ if [ ! -f "$SIGNING" ]; then
   PASS=$(python3 -c 'import secrets;print(secrets.token_urlsafe(24))')
   KS="$(dirname "$SIGNING")/dong-release.jks"
   keytool -genkeypair -keystore "$KS" -alias dong -keyalg RSA -keysize 4096 -validity 36500 \
-    -storepass "$PASS" -keypass "$PASS" -dname "CN=Dang, O=OpScaleHub" >/dev/null 2>&1
+    -storepass "$PASS" -keypass "$PASS" -dname "CN=Banadad, O=OpScaleHub" >/dev/null 2>&1
   umask 077; printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=dong\nkeyPassword=%s\n' "$KS" "$PASS" "$PASS" > "$SIGNING"
   printf '\033[1;31m!! Back up %s and %s somewhere safe.\n!! Without them no future version can update installed copies.\033[0m\n' "$KS" "$SIGNING"
 fi
@@ -77,14 +80,16 @@ say "Building signed release APK"
 APK=app/build/outputs/apk/release/app-release.apk
 [ -f "$APK" ] || die "release APK missing (is the signing config valid?)"
 OUT=build/release; mkdir -p "$OUT"
-cp "$APK" "$OUT/dang.apk"; cp "$APK" "$OUT/dang-$next.apk"
+cp "$APK" "$OUT/banadad.apk"; cp "$APK" "$OUT/banadad-$next.apk"
+# Same file under the old name: links to releases/latest/download/dang.apk keep working.
+cp "$APK" "$OUT/dang.apk"
 say "Building signed Cafe Bazaar APK (no self-updater)"
 ./gradlew -q --console=plain assembleRelease -Pstore=bazaar
-cp "$APK" "$OUT/dang-bazaar-$next.apk"
-SHA=$(sha256sum "$OUT/dang.apk" | cut -d' ' -f1)
-SIZE=$(stat -c %s "$OUT/dang.apk")
+cp "$APK" "$OUT/banadad-bazaar-$next.apk"
+SHA=$(sha256sum "$OUT/banadad.apk" | cut -d' ' -f1)
+SIZE=$(stat -c %s "$OUT/banadad.apk")
 APKSIGNER=$(ls -d "${ANDROID_HOME:-$HOME/Android/Sdk}"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
-if [ -n "$APKSIGNER" ]; then "$APKSIGNER" verify --print-certs "$OUT/dang.apk" | grep -m1 "certificate DN"; else echo "(apksigner not found; skipped signature check)"; fi
+if [ -n "$APKSIGNER" ]; then "$APKSIGNER" verify --print-certs "$OUT/banadad.apk" | grep -m1 "certificate DN"; else echo "(apksigner not found; skipped signature check)"; fi
 
 # ---- landing-page metadata + notes ------------------------------------------
 MIN_SDK=$(sed -n 's/.*minSdk = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
@@ -107,10 +112,10 @@ json.dump({
   "version": v, "versionCode": code, "minSdk": min_sdk,
   "date": d.isoformat(), "dateJalali": jalali(d),
   "sizeBytes": size, "sha256": sha,
-  "apk": "https://github.com/OpScaleHub/Dang/releases/latest/download/dang.apk",
+  "apk": "https://github.com/OpScaleHub/Banadad/releases/latest/download/banadad.apk",
   # Read by the in-app updater (update/Updater.kt): fixed to this version's file.
-  "apkPinned": f"https://github.com/OpScaleHub/Dang/releases/download/v{v}/dang-{v}.apk",
-  "notes": f"https://github.com/OpScaleHub/Dang/releases/tag/v{v}",
+  "apkPinned": f"https://github.com/OpScaleHub/Banadad/releases/download/v{v}/banadad-{v}.apk",
+  "notes": f"https://github.com/OpScaleHub/Banadad/releases/tag/v{v}",
 }, open("site/release.json", "w"), indent=2, ensure_ascii=False)
 open("site/release.json", "a").write("\n")
 PY
@@ -118,9 +123,9 @@ PY
 PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
 RANGE=${PREV:+$PREV..}HEAD
 {
-  echo "## دنگ $next"
+  echo "## بناداد $next"
   echo
-  echo "**دریافت:** \`dang.apk\` (اندروید ۸ و بالاتر)"
+  echo "**دریافت:** \`banadad.apk\` (اندروید ۸ و بالاتر)"
   echo
   section() { local t=$1 p=$2 l; l=$(git log --no-merges --format='- %s' "$RANGE" | grep -E "^- $p(\(|:)" | sed -E "s/^- $p(\([^)]*\))?: /- /" || true); if [ -n "$l" ]; then printf '### %s\n%s\n\n' "$t" "$l"; fi; }
   section "Features" feat
@@ -128,22 +133,29 @@ RANGE=${PREV:+$PREV..}HEAD
   section "Performance" perf
   other=$(git log --no-merges --format='- %s' "$RANGE" | grep -vE '^- (feat|fix|perf|chore\(release\))(\(|:)' || true)
   if [ -n "$other" ]; then printf '### Other\n%s\n\n' "$other"; fi
-  echo "SHA-256 (\`dang.apk\`): \`$SHA\`"
+  echo "SHA-256 (\`banadad.apk\`): \`$SHA\`"
 } > "$OUT/notes.md"
 
 say "Release notes"; cat "$OUT/notes.md"
-if [ $DRY = 1 ]; then say "Dry run: built $OUT/dang.apk ($SIZE bytes); nothing committed or pushed"; exit 0; fi
+if [ $DRY = 1 ]; then say "Dry run: built $OUT/banadad.apk ($SIZE bytes); nothing committed or pushed"; exit 0; fi
 
 # ---- commit, tag, push, publish ---------------------------------------------
 say "Committing, tagging and pushing $TAG"
 git add version.properties site/release.json
 git commit -q -m "chore(release): $TAG"
-git tag -a "$TAG" -m "Dang $next"
+git tag -a "$TAG" -m "Banadad $next"
 git push -q origin main "$TAG"
 
 say "Publishing GitHub Release"
-gh release create "$TAG" "$OUT/dang.apk" "$OUT/dang-$next.apk" "$OUT/dang-bazaar-$next.apk" \
-  --repo "$REPO" --title "دنگ $next" --notes-file "$OUT/notes.md" --latest
+gh release create "$TAG" "$OUT/banadad.apk" "$OUT/banadad-$next.apk" "$OUT/banadad-bazaar-$next.apk" "$OUT/dang.apk" \
+  --repo "$REPO" --title "بناداد $next" --notes-file "$OUT/notes.md" --latest
 
 say "Done: https://github.com/$REPO/releases/tag/$TAG"
-echo "Landing page updates via GitHub Pages in a minute: https://opscalehub.github.io/Dang/"
+say "Updating the compatibility copy for installs before 0.12"
+COMPAT=$(mktemp -d)
+gh repo clone "$COMPAT_REPO" "$COMPAT" -- -q
+cp site/release.json "$COMPAT/Dang/release.json"
+git -C "$COMPAT" add Dang/release.json
+git -C "$COMPAT" commit -q -m "release.json for $TAG" && git -C "$COMPAT" push -q
+rm -rf "$COMPAT"
+echo "Landing page updates via GitHub Pages in a minute: https://banadad.opscale.ir/"
