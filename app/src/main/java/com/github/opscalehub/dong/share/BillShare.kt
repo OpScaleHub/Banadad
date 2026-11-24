@@ -131,6 +131,20 @@ object PayTo {
         else -> S.payLineHolder.format(format(account), holder.trim())
     }
 
+    /**
+     * The text sent with a bill. Where to pay only when there is something to pay: a unit that owes
+     * gets the reminder (amount, deadline, card); a settled unit or one in credit gets a thank-you
+     * with no card number; one that owes nothing but has costs coming may pay ahead.
+     * [due] > 0 owes, < 0 credit; amounts already formatted by the caller.
+     */
+    fun billMessage(unit: String, building: String, due: Long, dueText: String, pendingTotal: Long, aheadText: String,
+                    deadline: String?, account: String, holder: String): String = when {
+        due > 0 -> reminder(unit, building, dueText, deadline, account, holder)
+        due + pendingTotal > 0 -> listOfNotNull(S.billMsgAhead.format(unit, building, aheadText), line(account, holder)).joinToString("\n")
+        due < 0 -> S.billMsgCredit.format(unit, building, dueText)
+        else -> S.billMsgSettled.format(unit, building)
+    }
+
     /** The reminder message: balance, the deadline if any, and where to pay. */
     fun reminder(unit: String, building: String, amount: String, due: String?, account: String, holder: String): String =
         listOfNotNull(S.reminderText.format(unit, building, amount), due?.let { S.dueLine.format(it) }, line(account, holder)).joinToString("\n")
@@ -248,6 +262,8 @@ object ReceiptShare {
             when { r.balance > 0 -> S.receiptRemaining; r.balance < 0 -> S.billCredit; else -> S.billSettled },
             if (r.balance != 0L) money.withUnit(kotlin.math.abs(r.balance)) else "",
             bold = true,
+            // Same colours as the bill: still owed red, settled or in credit teal.
+            color = if (r.balance > 0) ImageDoc.RED else ImageDoc.TEAL,
         ))
         add(Block.Footer("${r.today}، ${S.billFooter}"))
     }
@@ -266,7 +282,8 @@ object SummaryShare {
             val pct = (s.collected * 100 / s.billed).toInt()
             add(Block.Row(S.billed, money.format(s.billed)))
             add(Block.Bar("${S.collected} (${com.github.opscalehub.dong.i18n.Fmt.digits(pct.toString())}٪)", money.format(s.collected), s.collected.toFloat() / s.billed))
-            add(Block.Row(S.remaining, money.format(s.billed - s.collected), bold = true))
+            add(Block.Row(S.remaining, money.format(s.billed - s.collected), bold = true,
+                color = if (s.billed > s.collected) ImageDoc.RED else ImageDoc.TEAL))
             add(Block.Rule)
         }
         if (s.expenses.isNotEmpty()) {
