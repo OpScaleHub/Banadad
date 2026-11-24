@@ -53,7 +53,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private fun problemText(c: ProblemCode) = when (c) {
-    ProblemCode.NOT_A_BACKUP -> "این فایل، پشتیبان «دُنگ» نیست."
+    ProblemCode.NOT_A_BACKUP -> "این فایل، پشتیبان «بناداد» نیست."
     ProblemCode.UNSUPPORTED_VERSION -> "این پشتیبان با نسخه جدیدتری از برنامه ساخته شده است."
     ProblemCode.CHECKSUM_MISMATCH -> "فایل آسیب دیده یا دستکاری شده است (کد کنترل مطابقت ندارد)."
     ProblemCode.MALFORMED -> "ساختار فایل نامعتبر است."
@@ -157,7 +157,7 @@ fun rememberBackup(vm: AppViewModel, onDone: () -> Unit = {}): () -> Unit {
             }
         }, S.backupSendCopy, dismissText = S.backupKeepHere)
     }
-    return { launcher.launch("dang-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json") }
+    return { launcher.launch("banadad-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json") }
 }
 
 /**
@@ -174,7 +174,7 @@ fun rememberSendBackup(vm: AppViewModel): () -> Unit {
         scope.launch {
             try {
                 val text = vm.backup.export()
-                val name = "dang-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json"
+                val name = "banadad-backup-${Fmt.date(vm.today, vm.building.value?.calendar ?: CalendarSystem.JALALI, persian = false).replace('/', '-')}.json"
                 val file = withContext(Dispatchers.IO) {
                     java.io.File(java.io.File(context.cacheDir, "shared").apply { mkdirs() }, name).apply { writeText(text, Charsets.UTF_8) }
                 }

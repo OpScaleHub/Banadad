@@ -6,8 +6,8 @@ package com.github.opscalehub.dong.ui
  * turn this object into an interface with one implementation per language.
  */
 object S {
-    const val appName = "دُنگ"
-    const val appTagline = "حساب‌وکتاب ساختمان، ساده و شفاف"
+    const val appName = "بناداد"
+    const val appTagline = "شفافیت در حساب، انصاف در سهم"
     const val appShortDescription = "مدیریت هزینه‌ها و شارژ ساختمان، بدون نیاز به اینترنت"
 
     // navigation
@@ -430,7 +430,7 @@ object S {
     const val newRecords = "رکورد جدید"
     const val differingRecords = "رکورد متفاوت"
     const val privacyTitle = "حریم خصوصی"
-    const val privacyBody = "«دُنگ» حساب کاربری نمی‌خواهد و هیچ داده یا آماری ارسال نمی‌کند؛ همه اطلاعات ساختمان روی همین دستگاه می‌ماند. برنامه فقط برای بررسی و دریافت نسخه جدید خودش به اینترنت وصل می‌شود."
+    const val privacyBody = "«بناداد» حساب کاربری نمی‌خواهد و هیچ داده یا آماری ارسال نمی‌کند؛ همه اطلاعات ساختمان روی همین دستگاه می‌ماند. برنامه فقط برای بررسی و دریافت نسخه جدید خودش به اینترنت وصل می‌شود."
 
     // in-app update
     const val updTitle = "به‌روزرسانی برنامه"
@@ -439,7 +439,7 @@ object S {
     const val updCheckNow = "بررسی نسخه جدید"
     const val updChecking = "در حال بررسی نسخه جدید…"
     const val updUpToDate = "شما آخرین نسخه را دارید."
-    const val updAvailable = "نسخه تازه «دُنگ» آماده است:"
+    const val updAvailable = "نسخه تازه «بناداد» آماده است:"
     const val updSize = "حجم"
     const val megabytes = "مگابایت"
     const val updNow = "به‌روزرسانی"
@@ -640,7 +640,7 @@ object S {
     const val billPaid = "پرداختی"
     const val billLater = "شارژ ماه‌های بعد"
     const val billAdjust = "بستانکاری و اصلاح"
-    const val billFooter = "تهیه‌شده با برنامه دُنگ"
+    const val billFooter = "تهیه‌شده با برنامه بناداد"
     const val billDue = "مهلت پرداخت"
     const val billPending = "هزینه‌های در راه"
     const val billPendingNote = "این مبالغ با بستن ماه به حساب واحد اضافه می‌شوند و هنوز در مبلغ بالا نیستند؛ اگر بخواهید می‌توانید از حالا بپردازید."
@@ -730,12 +730,12 @@ object S {
     const val feedback = "نظر"
     const val feedbackLong = "نظر یا گزارش مشکل"
     const val feedbackMenuHint = "با ایمیل برای سازنده، یا امتیاز در بازار"
-    const val fbIntro = "به ما بگویید کجا گیج شدید، چه چیزی کار نکرد یا چه چیزی خوب بود. پیام شما با ایمیل برای سازنده دُنگ (%s) فرستاده می‌شود؛ قبل از فرستادن می‌توانید آن را ببینید و اگر خواستید عکس هم ضمیمه کنید."
-    const val fbSubject = "نظر درباره دُنگ"
+    const val fbIntro = "به ما بگویید کجا گیج شدید، چه چیزی کار نکرد یا چه چیزی خوب بود. پیام شما با ایمیل برای سازنده بناداد (%s) فرستاده می‌شود؛ قبل از فرستادن می‌توانید آن را ببینید و اگر خواستید عکس هم ضمیمه کنید."
+    const val fbSubject = "نظر درباره بناداد"
     const val fbTo = "به"
     const val fbSend = "فرستادن با ایمیل"
     const val fbRateTitle = "امتیاز در بازار"
-    const val fbRateHint = "اگر دُنگ به کارتان آمده، در کافه‌بازار امتیاز و نظر بدهید تا مدیرهای دیگر هم پیدایش کنند."
+    const val fbRateHint = "اگر بناداد به کارتان آمده، در کافه‌بازار امتیاز و نظر بدهید تا مدیرهای دیگر هم پیدایش کنند."
     const val fbRate = "امتیاز و نظر در بازار"
     const val fbNoBazaar = "کافه‌بازار روی این گوشی نصب نیست."
     const val fbKind = "نوع"

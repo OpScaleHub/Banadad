@@ -225,7 +225,7 @@ object BillShare {
                 try {
                     repos.bills.markSent(period, unit, chosen?.packageName ?: "share")
                 } catch (e: Exception) {
-                    android.util.Log.i("Dang", "bill share not recorded: ${e.javaClass.simpleName}")
+                    android.util.Log.i("Banadad", "bill share not recorded: ${e.javaClass.simpleName}")
                 } finally {
                     pending.finish()
                 }
