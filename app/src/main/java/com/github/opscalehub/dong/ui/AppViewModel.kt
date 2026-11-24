@@ -126,7 +126,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val moved = repos.buildings.alignBillsWithMonthlyCharge(id)
                     if (moved > 0) ui.noteBillsMoved(id, moved)
                 } catch (e: Exception) {
-                    Log.w("Dang", "prepaid month upkeep failed", e)
+                    Log.w("Banadad", "prepaid month upkeep failed", e)
                 }
             }
     }
@@ -171,12 +171,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 block()
                 true
             } catch (e: OpException) {
-                Log.i("Dang", "action rejected: ${e.code}")
+                Log.i("Banadad", "action rejected: ${e.code}")
                 _messages.emit(Fa.error(e.code))
                 false
             } catch (e: Exception) {
                 // Log the type only: messages may contain resident data.
-                Log.w("Dang", "action failed: ${e.javaClass.simpleName}")
+                Log.w("Banadad", "action failed: ${e.javaClass.simpleName}")
                 _messages.emit(S.unexpectedError)
                 false
             } finally {

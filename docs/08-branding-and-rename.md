@@ -1,4 +1,4 @@
-# Branding: دنگ / Dang (formerly "Dong")
+# Branding: بناداد / Banadad (formerly دنگ / Dang, earlier "Dong")
 
 - Persian name: **دنگ**, shown with the vowel mark as **دُنگ** from 0.7.0 (primary, everywhere users see the product).
 - Latin spelling: **Dang**. Earlier releases and documents used "Dong".
@@ -63,3 +63,14 @@ The in-app updater reads `release.json` from Pages. To keep installs updating:
 
 Releases from v0.3.1 on attach `dang.apk` (always the latest, which the landing page links
 to) and `dang-X.Y.Z.apk` (pinned, which the updater downloads).
+
+## Rebrand to بناداد / Banadad (2026-11-24, in progress)
+
+Audit, migration map and plan: docs/15. Same principle as Dong → Dang: only what people see changes;
+applicationId, package, `dong.db`, `dong-backup`, prefs, FileProvider authority and the signing key stay.
+Phase 2 (app, next release): launcher and in-app name «بناداد», tagline «شفافیت در حساب، انصاف در سهم»,
+icon "«ب» as a balance pan" (teal #0E4C4F, gold #E3A63B), footers, feedback texts, file names
+(`banadad-backup-*.json`, `banadad-*.xlsx`, `banadad-journal.csv`), log tag; update check tries
+`https://banadad.opscale.ir/release.json` first, then `https://opscalehub.github.io/Dang/release.json`
+(the dead `/Dong/` dropped). Landing page, release script, Bazaar listing and the repo name follow
+(docs/15, phases 3–4).

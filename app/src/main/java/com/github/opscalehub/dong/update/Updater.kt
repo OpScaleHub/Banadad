@@ -126,7 +126,7 @@ class Updater(
                 if (UpdatePolicy.offer(info, currentCode, Build.VERSION.SDK_INT, prefs.getInt(KEY_SKIPPED, 0), manual)) UpdateState.Available(info)
                 else if (manual) UpdateState.UpToDate else UpdateState.Idle
             } catch (e: Exception) {
-                Log.i("Dang", "update check failed: ${e.javaClass.simpleName}")
+                Log.i("Banadad", "update check failed: ${e.javaClass.simpleName}")
                 if (manual) UpdateState.Failed(UpdateState.Reason.NETWORK, null) else UpdateState.Idle
             }
         }
@@ -158,7 +158,7 @@ class Updater(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 UpdateState.Available(info)
             } catch (e: Exception) {
-                Log.i("Dang", "update download failed: ${e.javaClass.simpleName}")
+                Log.i("Banadad", "update download failed: ${e.javaClass.simpleName}")
                 UpdateState.Failed(UpdateState.Reason.NETWORK, info)
             }
         }
@@ -227,7 +227,7 @@ class Updater(
                     s.commit(pi.intentSender)
                 }
             } catch (e: Exception) {
-                Log.i("Dang", "update install failed: ${e.javaClass.simpleName}")
+                Log.i("Banadad", "update install failed: ${e.javaClass.simpleName}")
                 _state.value = UpdateState.Failed(UpdateState.Reason.STORAGE, ready.info)
             }
         }

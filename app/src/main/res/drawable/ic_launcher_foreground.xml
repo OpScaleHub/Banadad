@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A building split into shares: the idea of "dong". -->
+<!-- بناداد: the bowl of «ب» is a balance pan; its gold dot is the fulcrum (fair shares). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF"
-        android:pathData="M36,30h36v50h-36z" />
-    <path android:fillColor="#00695C"
-        android:pathData="M41,36h8v7h-8zM59,36h8v7h-8zM41,48h8v7h-8zM59,48h8v7h-8zM41,60h8v7h-8zM59,60h8v7h-8zM50,70h8v10h-8z" />
-    <path android:fillColor="#FFD54F"
-        android:pathData="M54,22l22,10h-44z" />
+    <!-- Drawn on the 108 design grid, scaled into the 66dp safe zone of an adaptive icon. -->
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.62" android:scaleY="0.62" android:translateY="-7">
+        <path android:strokeColor="#F6F1E6" android:strokeWidth="9" android:strokeLineCap="round"
+            android:pathData="M26,44 Q26,70 54,70 Q82,70 82,44" />
+        <path android:strokeColor="#F6F1E6" android:strokeWidth="7" android:strokeLineCap="round"
+            android:pathData="M20,44 L88,44" />
+        <path android:fillColor="#E3A63B"
+            android:pathData="M47,84 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0z" />
+    </group>
 </vector>

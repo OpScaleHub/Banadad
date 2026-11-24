@@ -37,8 +37,9 @@ android {
         // Update check (update/Updater.kt). Release builds check on start; debug builds only when
         // -PupdateUrl=... is given, so tests never touch the network.
         val updateUrl = (findProperty("updateUrl") as String?)
-        // Comma-separated, tried in order: the Pages address after the Dong → Dang rename, then the old one.
-        val updateUrls = updateUrl ?: "https://opscalehub.github.io/Dang/release.json,https://opscalehub.github.io/Dong/release.json"
+        // Comma-separated, tried in order: the Banadad domain, then the GitHub Pages address every
+        // install since 0.3.1 knows (keep it: docs/15). The old /Dong/ address is dead and dropped.
+        val updateUrls = updateUrl ?: "https://banadad.opscale.ir/release.json,https://opscalehub.github.io/Dang/release.json"
         buildConfigField("String", "UPDATE_URLS", "\"$updateUrls\"")
         buildConfigField("boolean", "UPDATE_AUTO_DEBUG", "${updateUrl != null}")
         buildConfigField("boolean", "UPDATES_ENABLED", "${!bazaar}")

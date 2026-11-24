@@ -166,7 +166,7 @@ fun FeedbackScreen(vm: AppViewModel, nav: NavController) {
                         if (attach && buildingId != null) {
                             val backup = vm.backup.export(listOf(buildingId))
                             val file = withContext(Dispatchers.IO) {
-                                File(File(ctx.cacheDir, "shared").apply { mkdirs() }, "dang-backup-report.json").apply { writeText(backup) }
+                                File(File(ctx.cacheDir, "shared").apply { mkdirs() }, "banadad-backup-report.json").apply { writeText(backup) }
                             }
                             emailWithFile(ctx, text, file)
                         } else email(ctx, text)
