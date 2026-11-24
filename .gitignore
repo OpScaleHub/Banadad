@@ -12,3 +12,7 @@
 /workbook/.venv/
 __pycache__/
 *.keystore
+
+# JVM crash and replay logs
+hs_err_pid*.log
+replay_pid*.log

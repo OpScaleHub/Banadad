@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="دُنگ">
-  <rect width="108" height="108" rx="26" fill="#0E5E54"/>
-  <path fill="#F3EEE3" d="M36 34h36v48H36z"/>
-  <path fill="#0E5E54" d="M41 40h8v7h-8zM59 40h8v7h-8zM41 52h8v7h-8zM59 52h8v7h-8zM41 64h8v7h-8zM59 64h8v7h-8zM50 72h8v10h-8z"/>
-  <path fill="#E6C98A" d="M54 22l22 11H32z"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="بناداد"><rect width="108" height="108" rx="24" fill="#0E4C4F"/><path d="M26 44 Q26 70 54 70 Q82 70 82 44" fill="none" stroke="#F6F1E6" stroke-width="9" stroke-linecap="round"/><line x1="20" y1="44" x2="88" y2="44" stroke="#F6F1E6" stroke-width="7" stroke-linecap="round"/><circle cx="54" cy="84" r="7" fill="#E3A63B"/></svg>

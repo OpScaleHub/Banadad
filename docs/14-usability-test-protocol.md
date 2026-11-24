@@ -1,6 +1,6 @@
 # 14. Usability test protocol (field testing with real managers)
 
-How to watch building managers use دُنگ and turn what they do into numbers we can compare
+How to watch building managers use بناداد and turn what they do into numbers we can compare
 between versions. Written after 0.8.x, when testers' feedback still arrived by phone call.
 Complements docs/10 (research plan); this file is the short, repeatable session script.
 

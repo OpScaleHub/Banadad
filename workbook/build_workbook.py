@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the Dang (دنگ) accounting prototype workbook (Persian, RTL).
+"""Generates the Banadad (بناداد) accounting prototype workbook (Persian, RTL).
 
 Usage: python build_workbook.py [output.xlsx]
 
@@ -314,9 +314,9 @@ def build(out):
     wb.remove(wb.active)
 
     # ---- Guide ----------------------------------------------------------
-    g = sheet(wb, "راهنما", "دفتر حسابداری ساختمان «دنگ» — نمونه اولیه (Prototype)")
+    g = sheet(wb, "راهنما", "دفتر حسابداری ساختمان «بناداد» — نمونه اولیه (Prototype)")
     rows = [
-        "این کارپوشه نمونه اولیه قواعد مالی برنامه اندرویدی «دنگ» است و تمام داده‌های آن ساختگی (نمونه) هستند.",
+        "این کارپوشه نمونه اولیه قواعد مالی برنامه اندرویدی «بناداد» است و تمام داده‌های آن ساختگی (نمونه) هستند.",
         "موتور محاسبه اصلی در برنامه (کاتلین) پیاده‌سازی و آزمون شده است؛ این فایل برای اعتبارسنجی قواعد است.",
         "",
         "راهنمای رنگ‌ها:",
@@ -384,7 +384,7 @@ def build(out):
     for i, (k, v, fmt) in enumerate(settings, start=4):
         S.cell(row=i, column=1, value=k).font = F_CALC
         inp(S, f"B{i}", v, fmt)
-    S["B7"].comment = Comment("مثلاً ۱۰۰۰ یعنی سهم‌ها به مضرب ۱۰۰۰ ریال گرد می‌شوند. باقیمانده به روش بزرگ‌ترین باقیمانده توزیع می‌شود.", "Dang")
+    S["B7"].comment = Comment("مثلاً ۱۰۰۰ یعنی سهم‌ها به مضرب ۱۰۰۰ ریال گرد می‌شوند. باقیمانده به روش بزرگ‌ترین باقیمانده توزیع می‌شود.", "Banadad")
     dv_list(S, "B12", R_BASIS)
     dv_nonneg(S, "B7")
     INC_REF = f"{q('تنظیمات')}!$B$7"
@@ -719,7 +719,7 @@ def build(out):
     inp(O, "B7", OPENING["payable"], MONEY)
     O["A8"] = "مانده افتتاحیه صندوق عملیاتی (محاسبه‌شده)"
     calc(O, "B8", f"=B5+SUM(B11:B{10 + len(UNITS)})-B7-B6", MONEY)
-    O["B8"].comment = Comment("نقد + مطالبات − بدهی‌ها − اندوخته", "Dang")
+    O["B8"].comment = Comment("نقد + مطالبات − بدهی‌ها − اندوخته", "Banadad")
     O["A10"] = "مانده افتتاحیه واحدها"
     O["A10"].font = Font(name=FONT, bold=True)
     for i, uid in enumerate(UNIT_IDS):
@@ -996,8 +996,8 @@ def build(out):
     K[f"A{kN + 3}"] = "مقادیر «مورد انتظار» ثابت‌اند و فقط برای همین داده نمونه معتبرند؛ با تغییر ورودی‌ها انتظار می‌رود برخی سناریوها «نادرست» شوند."
     K[f"A{kN + 3}"].font = F_NOTE
 
-    wb.properties.title = "Dang (دنگ) — Building accounting prototype"
-    wb.properties.creator = "Dang"
+    wb.properties.title = "Banadad (بناداد) — Building accounting prototype"
+    wb.properties.creator = "Banadad"
     order = ["راهنما", "تنظیمات", "واحدها", "پارکینگ", "کنتورها", "دوره‌ها", "دسته‌ها", "هزینه‌ها", "اقلام شارژ",
              "شمول", "وزن‌ها", "سطرهای تسهیم", "محاسبه تسهیم", "ریز شارژ", "افتتاحیه", "دریافت‌ها", "پرداخت‌ها",
              "تعدیل‌ها", "انتقال‌ها", "دفتر صندوق", "مانده واحدها", "صندوق‌ها", "خلاصه ماهانه", "کنترل‌ها", "فهرست‌ها"]
@@ -1010,7 +1010,7 @@ def build(out):
 
 
 if __name__ == "__main__":
-    out = sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).with_name("Dang-accounting-prototype.xlsx"))
+    out = sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).with_name("Banadad-accounting-prototype.xlsx"))
     ref, n = build(out)
     print(f"wrote {out} with {n} checks")
     print(json.dumps({"unitChargeTotals": ref["unitChargeTotals"], "closing": ref["unitClosingBalances"],
