@@ -630,6 +630,9 @@ object S {
     const val people = "نفر"
     const val nextMonth = "ماه بعد"
     val weekDays = listOf("ش", "ی", "د", "س", "چ", "پ", "ج")
+    const val billMsgSettled = "سلام. قبض شارژ واحد %s در ساختمان «%s» پیوست است. حساب شما تسویه است؛ با تشکر."
+    const val billMsgCredit = "سلام. قبض شارژ واحد %s در ساختمان «%s» پیوست است. طلب شما %s است و از شارژ ماه‌های بعد کم می‌شود. با تشکر."
+    const val billMsgAhead = "سلام. قبض شارژ واحد %s در ساختمان «%s» پیوست است. بدهی ندارید؛ هزینه‌های در راه %s است و اگر بخواهید می‌توانید از حالا بپردازید."
     const val reminderText = "سلام. مانده شارژ واحد %s در ساختمان «%s» تا امروز %s است. لطفاً پرداخت کنید. با تشکر."
     const val billTitle = "قبض شارژ"
     const val billTotalDue = "مبلغ قابل پرداخت"

@@ -119,8 +119,7 @@ fun SendBillsScreen(vm: AppViewModel, periodId: String, onAddPayment: () -> Unit
                     val share = {
                         vm.run {
                             val bill = vm.repos.bills.bill(building.id, u.id, p.id)
-                            val reminder = reminderFor(building, u.label, mf.withUnit(bill.due.coerceAtLeast(0)), p)
-                            BillShare.shareBill(context, bill, mf, reminder, p.id, u.id)
+                            BillShare.shareBill(context, bill, mf, billMessageFor(building, bill, mf), p.id, u.id)
                         }
                     }
                     if (last == null) Button(onClick = share) { Text(S.shareBill) } else OutlinedButton(onClick = share) { Text(S.sendAgain) }

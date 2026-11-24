@@ -87,6 +87,11 @@ private fun parkingText(n: Int) = if (n > 0) "، ${Fmt.number(n.toLong())} ${S.p
 private enum class UnitFilter { ALL, OWES, SETTLED }
 
 /** The reminder message for a unit: what it owes, the month's deadline if not yet passed, and where to pay. */
+/** The text sent with [bill]: a reminder with the card only when the unit owes (see PayTo.billMessage). */
+fun billMessageFor(b: com.github.opscalehub.dong.data.db.BuildingEntity, bill: com.github.opscalehub.dong.share.Bill, mf: com.github.opscalehub.dong.i18n.MoneyFormat): String =
+    com.github.opscalehub.dong.share.PayTo.billMessage(Fmt.ltr(bill.unit), b.name, bill.due, mf.withUnit(kotlin.math.abs(bill.due)), bill.pendingTotal,
+        mf.withUnit(bill.pendingTotal), bill.dueDate, b.payAccount, b.payHolder)
+
 fun reminderFor(b: com.github.opscalehub.dong.data.db.BuildingEntity, unit: String, owed: String, period: com.github.opscalehub.dong.data.db.PeriodEntity?): String =
     com.github.opscalehub.dong.share.PayTo.reminder(Fmt.ltr(unit), b.name, owed, period?.dueDate?.let { Fmt.date(it, b.calendar) }, b.payAccount, b.payHolder)
 
@@ -328,7 +333,7 @@ fun UnitScreen(vm: AppViewModel, nav: NavController, unitId: String) {
                     OutlinedButton(onClick = {
                         vm.run {
                             val bill = vm.repos.bills.bill(building.id, unitId, lastClosed?.id)
-                            BillShare.shareBill(context, bill, mf, reminder(), lastClosed?.id, unitId)
+                            BillShare.shareBill(context, bill, mf, billMessageFor(building, bill, mf), lastClosed?.id, unitId)
                         }
                     }) { Text(S.shareBill) }
                     if (balance > 0) OutlinedButton(onClick = { BillShare.shareText(context, reminder()) }) { Text(S.shareReminder) }

@@ -38,4 +38,16 @@ class PayToCheckTest {
         assertTrue(PayTo.looksLikeNumber("6037 9912 3456 7893"))
         assertFalse(PayTo.looksLikeNumber("مدیر ساختمان"))
     }
+
+    @Test fun `the card number goes only with a bill that asks for money`() {
+        val card = "6037991234567893"
+        fun msg(due: Long, pending: Long = 0) = PayTo.billMessage("1-1", "آزمون", due, "X", pending, "Y", "۱۴۰۵/۰۹/۱۰", card, "مدیر")
+        assertTrue("owes: reminder with card", msg(5).contains("6037"))
+        assertFalse("settled: no card", msg(0).contains("6037"))
+        assertTrue(msg(0).contains("تسویه"))
+        assertFalse("credit: no card", msg(-5).contains("6037"))
+        assertTrue(msg(-5).contains("طلب"))
+        assertFalse("credit larger than upcoming costs: no card", msg(-5, 3).contains("6037"))
+        assertTrue("nothing owed but costs coming: may pay ahead", msg(0, 3).contains("6037"))
+    }
 }
